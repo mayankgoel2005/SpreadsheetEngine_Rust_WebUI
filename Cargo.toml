@@ -1,0 +1,6 @@
+[package]
+name = "lab1_2023CS10204_2023CS10076_2023CS10186"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
