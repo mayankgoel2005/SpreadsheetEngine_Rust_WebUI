@@ -3,6 +3,10 @@ use std::io::{self, Write};
 use std::time::Instant;
 mod spreadsheet;
 mod input_parser;
+mod scrolling;
+mod test;
+mod graph;
+mod functions;
 
 const MAX_INPUT_SIZE: usize = 100;
 
