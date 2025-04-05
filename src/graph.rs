@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-
+const INT_MIN: i32 = i32::MIN;
+const INT_MAX: i32 = i32::MAX;
 #[derive(Debug)]
 struct QueueNode {
     cell: i32,
@@ -271,6 +272,221 @@ fn addedge_formula(graph: &mut Graph, cell: i32, cols: i32, formula_array: &[For
                 let target_cell = row * cols + col;
                 graph.adj[target_cell as usize] = Some(addedge(cell, graph.adj[target_cell as usize].take()));
             }
+        }
+    }
+}
+
+fn topo_sort(graph: &Graph, start: i32, size: &mut i32, hascycle: &mut i32) -> Option<i32> {
+    *size = 0;
+    *hascycle = 0;
+    let num=1;
+    let mut result = vec![0; CELLS];
+    let mut indeg = vec![0; CELLS];
+    let mut reachable = vec![0; CELLS];
+    let mut q = Queue::new();
+    let mut vis = Queue::new();
+    vis.enqueue(start);
+    reachable[start as usize] = 1;
+    while(vis.front.is_some()){
+        let cur = vis.dequeue().unwrap();
+        if(graph.adj[cur as usize].is_some()) {
+            let mut nodes = vec![0; CELLS];
+            let ct = 0;
+            get_nodes_from_avl(graph.adj[cur as usize].as_ref(), &mut nodes);
+            for i in 0..(ct - 1) {
+                let dep = nodes[i];
+                indeg[dep]+ +;
+                if (reachable[dep as usize] == 0) {
+                    reachable[dep as usize] = 1;
+                    num+ +;
+                    vis.enqueue(dep);
+                }
+            }
+        }
+    }
+    if(indeg[start as usize] > 0){
+        println!("Cycle detected");
+        return None;
+    }
+    q.enqueue(start);
+    while(q.front.is_some()){
+        let cur = q.dequeue().unwrap();
+        let k= (*size)+1;
+        result[k]=cur;
+        if(graph.adj[cur].is_some()){
+            let mut nodes = vec![0; CELLS];
+            let ct=0;
+            get_nodes_from_avl(graph.adj[cur as usize].as_ref(), &mut nodes);
+            for i in 0..(ct - 1) {
+                let dep = nodes[i];
+                indeg[dep] -= 1;
+                if (indeg[dep as usize] == 0) {
+                    q.enqueue(dep);
+                }
+            }
+        }
+    }
+    if(*size<num){
+        *hascycle = 1;
+        return None;
+    }
+    return result;
+}
+
+fn arith(v1: i32, v2: i32, op: char) -> i32 {
+    match op {
+        '+' => v1 + v2,
+        '-' => v1 - v2,
+        '*' => v1 * v2,
+        '/' => if v2 != 0 { v1 / v2 } else { INT_MIN },
+        _   => INT_MIN,
+    }
+}
+
+fn recalc(graph: &Graph, c: i32, arr: &mut [i32], start_cell: i32, formula_array: &[Formula]) {
+    let mut size=0;
+    let mut hascycle;
+    let sorted_cells = topo_sort(graph, start_cell, &mut size, &mut hascycle);
+    if hascycle {
+        println!("Error: Circular dependency detected. Command rejected.");
+        return;
+    }
+    for i in 0..size {
+        arr[sorted_cells[i]] = 0;
+    }
+    for &cell in &sorted_cells {
+        let f = formula_array[cell];
+        if f.op_type == 0 {
+            if f.op_info1 == INT_MIN {
+                println!(
+                    "Error: Cell {} has an invalid constant value (INT_MIN)",
+                    cell
+                );
+                arr[cell] = INT_MIN;
+            } else {
+                arr[cell] = f.op_info1;
+            }
+        } else if (1..=4).contains(&f.op_type) {
+            let v1 = arr[f.op_info1 as usize];
+            let v2 = f.op_info2;
+            if v1 == INT_MIN {
+                println!(
+                    "Error: Cell {} has invalid operand (v1 is INT_MIN)",
+                    f.op_info1
+                );
+                arr[cell] = INT_MIN;
+                continue;
+            }
+            let op = match f.op_type {
+                1 => '+',
+                2 => '-',
+                3 => '*',
+                4 => '/',
+                _ => unreachable!(),
+            };
+            if op == '/' && v2 == 0 {
+                arr[cell] = INT_MIN;
+                continue;
+            }
+            arr[cell] = arith(v1, v2, op);
+        } else if (5..=8).contains(&f.op_type) {
+            let v1 = arr[f.op_info1 as usize];
+            let v2 = arr[f.op_info2 as usize];
+            if f.op_type == 8 && v2 == 0 {
+                arr[cell] = INT_MIN;
+                continue;
+            }
+            if v1 == INT_MIN || v2 == INT_MIN {
+                println!(
+                    "Error: One of the operands for cell {} is INT_MIN",
+                    cell
+                );
+                arr[cell] = INT_MIN;
+                continue;
+            }
+            let op = match f.op_type {
+                5 => '+',
+                6 => '-',
+                7 => '*',
+                8 => '/',
+                _ => unreachable!(),
+            };
+            arr[cell] = arith(v1, v2, op);
+        } else if (9..=13).contains(&f.op_type) {
+            let start_cell = f.op_info1;
+            let end_cell = f.op_info2;
+            let start_row = start_cell / C;
+            let start_col = start_cell % C;
+            let end_row = end_cell / C;
+            let end_col = end_cell % C;
+
+            let mut sum = 0;
+            let mut count = 0;
+            let mut stdev_squared = 0;
+            let mut min_val = INT_MAX;
+            let mut max_val = INT_MIN;
+            let mut has_error = false;
+
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    let idx = (row * C + col) as usize;
+                    let val = arr[idx];
+                    if val == INT_MIN {
+                        has_error = true;
+                        break;
+                    }
+                    sum += val;
+                    count += 1;
+                    if val < min_val {
+                        min_val = val;
+                    }
+                    if val > max_val {
+                        max_val = val;
+                    }
+                }
+                if has_error {
+                    break;
+                }
+            }
+
+            if has_error {
+                arr[cell] = INT_MIN;
+                continue;
+            }
+
+            let mean = sum as f64 / count as f64;
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    let idx = (row * C + col) as usize;
+                    stdev_squared += ((arr[idx] as f64 - mean).powi(2)) as i32;
+                }
+            }
+
+            arr[cell] = match f.op_type {
+                9 => min_val,
+                10 => max_val,
+                11 => sum / count,
+                12 => sum,
+                13 => ( (stdev_squared as f64 / count as f64).sqrt() ) as i32,
+                _ => unreachable!(),
+            };
+        } else if f.op_type == 14 {
+            let sleep_value = if f.op_info1 == cell as i32 {
+                f.op_info2
+            } else {
+                arr[f.op_info1 as usize]
+            };
+
+            if sleep_value == INT_MIN {
+                println!("Error: Invalid sleep value in cell {}", cell);
+                arr[cell] = INT_MIN;
+                continue;
+            } else if sleep_value <= 0 {
+                arr[cell] = sleep_value;
+                continue;
+            }
+            sleep(sleep_value); // Perform sleep.
+            arr[cell] = sleep_value;
         }
     }
 }
