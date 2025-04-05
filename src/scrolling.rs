@@ -1,30 +1,53 @@
 use crate::spreadsheet::Spreadsheet;
+use crate::display::scroller_display;
+
+pub fn scroll_to(spreadsheet: &mut Spreadsheet, row: usize, col: usize) {
+    spreadsheet.curr_x = col;
+    spreadsheet.curry = row;
+}
+
+pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) {
+    scroller_display(
+        cmd,
+        &spreadsheet.arr,
+        &mut spreadsheet.curr_x,
+        &mut spreadsheet.curry,
+        spreadsheet.cols,
+        spreadsheet.rows,
+        &spreadsheet.graph,
+    );
+}
 
 pub fn scroll_up(spreadsheet: &mut Spreadsheet) {
-    if spreadsheet.start_row > 0 {
-        spreadsheet.start_row = spreadsheet.start_row.saturating_sub(10);
+    if spreadsheet.curry < 10 {
+        spreadsheet.curry = 0;
+    } else {
+        spreadsheet.curry -= 10;
     }
 }
 
 pub fn scroll_down(spreadsheet: &mut Spreadsheet) {
-    if spreadsheet.start_row + 10 < spreadsheet.rows {
-        spreadsheet.start_row = (spreadsheet.start_row + 10).min(spreadsheet.rows - 10);
+    let remaining = spreadsheet.rows.saturating_sub(spreadsheet.curry + 10);
+    if remaining < 10 {
+        spreadsheet.curry += remaining;
+    } else {
+        spreadsheet.curry += 10;
     }
 }
 
 pub fn scroll_left(spreadsheet: &mut Spreadsheet) {
-    if spreadsheet.start_col > 0 {
-        spreadsheet.start_col = spreadsheet.start_col.saturating_sub(10);
+    if spreadsheet.curr_x < 10 {
+        spreadsheet.curr_x = 0;
+    } else {
+        spreadsheet.curr_x -= 10;
     }
 }
 
 pub fn scroll_right(spreadsheet: &mut Spreadsheet) {
-    if spreadsheet.start_col + 10 < spreadsheet.cols {
-        spreadsheet.start_col = (spreadsheet.start_col + 10).min(spreadsheet.cols - 10);
+    let remaining = spreadsheet.cols.saturating_sub(spreadsheet.curr_x + 10);
+    if remaining < 10 {
+        spreadsheet.curr_x += remaining;
+    } else {
+        spreadsheet.curr_x += 10;
     }
-}
-
-pub fn scroll_to(spreadsheet: &mut Spreadsheet, row: usize, col: usize) {
-    spreadsheet.start_row = row.saturating_sub(1);
-    spreadsheet.start_col = col.saturating_sub(1);
 }

@@ -1,15 +1,21 @@
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::cmp;
+use std::rc::Rc;
+use std::thread;
+use std::time::Duration;
+
 const INT_MIN: i32 = i32::MIN;
 const INT_MAX: i32 = i32::MAX;
+const CELLS: usize = 1000;
+
 #[derive(Debug)]
-struct QueueNode {
+pub struct QueueNode {
     cell: i32,
     next: Option<Rc<RefCell<QueueNode>>>,
 }
 
 #[derive(Debug)]
-struct Queue {
+pub struct Queue {
     front: Option<Rc<RefCell<QueueNode>>>,
     rear: Option<Rc<RefCell<QueueNode>>>,
 }
@@ -56,17 +62,16 @@ fn get_nodes_from_avl(root: Option<&Box<Cell>>, nodes: &mut Vec<i32>) {
         get_nodes_from_avl(node.right.as_ref(), nodes);
     }
 }
-const CELLS: usize = 1000;
 
 #[derive(Copy, Clone, Debug)]
-struct Formula {
-    op_type: i32,
-    op_info1: usize,
-    op_info2: usize,
+pub struct Formula {
+    pub op_type: i32,
+    pub op_info1: i32,
+    pub op_info2: i32,
 }
 
 #[derive(Debug)]
-struct Cell {
+pub struct Cell {
     cell: i32,
     height: i32,
     left: Option<Box<Cell>>,
@@ -74,23 +79,25 @@ struct Cell {
 }
 
 #[derive(Debug)]
-struct Graph {
-    adj: Vec<Option<Box<Cell>>>,
+pub struct Graph {
+    pub adj: vec![Option::<Box<Cell>>::None; 1000],
 }
 
-fn addformula(cell: i32, op_type: i32, p1: i32, p2: i32, formulalist: &mut [Formula]) {
-    let mut f = Formula {
-        op_type,
-        op_info1: 0,
-        op_info2: 0,
-    };
-    if op_type == 0 {
-        f.op_info1 = p1 as usize;
+pub fn add_formula(cell: i32, op_type: i32, p1: i32, p2: i32, formula_list: &mut [Formula]) {
+    let f = if op_type == 0 {
+        Formula {
+            op_type,
+            op_info1: p1,
+            op_info2: -1,
+        }
     } else {
-        f.op_info1 = p1 as usize;
-        f.op_info2 = p2 as usize;
-    }
-    formulalist[cell as usize] = f;
+        Formula {
+            op_type,
+            op_info1: p1,
+            op_info2: p2,
+        }
+    };
+    formula_list[cell as usize] = f;
 }
 
 fn height(cell: Option<&Box<Cell>>) -> i32 {
@@ -107,8 +114,8 @@ fn right_rotate(mut cell: Box<Cell>) -> Box<Cell> {
     x.right = Some(cell);
     x.right.as_mut().unwrap().left = t2;
     let right = x.right.as_mut().unwrap();
-    right.height = 1 + std::cmp::max(height(right.left.as_ref()), height(right.right.as_ref()));
-    x.height = 1 + std::cmp::max(height(x.left.as_ref()), height(x.right.as_ref()));
+    right.height = 1 + cmp::max(height(right.left.as_ref()), height(right.right.as_ref()));
+    x.height = 1 + cmp::max(height(x.left.as_ref()), height(x.right.as_ref()));
     x
 }
 
@@ -118,12 +125,12 @@ fn left_rotate(mut cell: Box<Cell>) -> Box<Cell> {
     x.left = Some(cell);
     x.left.as_mut().unwrap().right = t2;
     let left = x.left.as_mut().unwrap();
-    left.height = 1 + std::cmp::max(height(left.left.as_ref()), height(left.right.as_ref()));
-    x.height = 1 + std::cmp::max(height(x.left.as_ref()), height(x.right.as_ref()));
+    left.height = 1 + cmp::max(height(left.left.as_ref()), height(left.right.as_ref()));
+    x.height = 1 + cmp::max(height(x.left.as_ref()), height(x.right.as_ref()));
     x
 }
 
-fn addcell(cell: i32) -> Box<Cell> {
+pub fn add_cell(cell: i32) -> Box<Cell> {
     Box::new(Cell {
         cell,
         left: None,
@@ -132,26 +139,24 @@ fn addcell(cell: i32) -> Box<Cell> {
     })
 }
 
-fn create_graph() -> Box<Graph> {
-    Box::new(Graph {
+pub fn create_graph() -> Graph {
+    Graph {
         adj: vec![None; CELLS],
-    })
+    }
 }
 
-fn addedge(cell1: i32, x: Option<Box<Cell>>) -> Box<Cell> {
+pub fn add_edge(cell1: i32, x: Option<Box<Cell>>) -> Box<Cell> {
     match x {
-        None => addcell(cell1),
+        None => add_cell(cell1),
         Some(mut node) => {
             if cell1 < node.cell {
-                node.left = Some(addedge(cell1, node.left));
+                node.left = Some(add_edge(cell1, node.left));
             } else if cell1 > node.cell {
-                node.right = Some(addedge(cell1, node.right));
+                node.right = Some(add_edge(cell1, node.right));
             } else {
                 return node;
             }
-            let left_height = height(node.left.as_ref());
-            let right_height = height(node.right.as_ref());
-            node.height = 1 + left_height.max(right_height);
+            node.height = 1 + cmp::max(height(node.left.as_ref()), height(node.right.as_ref()));
 
             let bal = balance(Some(&node));
             if bal > 1 && cell1 < node.left.as_ref().unwrap().cell {
@@ -168,20 +173,19 @@ fn addedge(cell1: i32, x: Option<Box<Cell>>) -> Box<Cell> {
                 node.right = Some(right_rotate(node.right.take().unwrap()));
                 return left_rotate(node);
             }
-
             node
         }
     }
 }
 
-fn deletecell(cell1: i32, x: Option<Box<Cell>>) -> Option<Box<Cell>> {
+pub fn delete_cell(cell1: i32, x: Option<Box<Cell>>) -> Option<Box<Cell>> {
     match x {
         None => None,
         Some(mut node) => {
             if cell1 < node.cell {
-                node.left = deletecell(cell1, node.left);
+                node.left = delete_cell(cell1, node.left);
             } else if cell1 > node.cell {
-                node.right = deletecell(cell1, node.right);
+                node.right = delete_cell(cell1, node.right);
             } else {
                 if node.left.is_none() || node.right.is_none() {
                     return if node.left.is_some() {
@@ -198,16 +202,11 @@ fn deletecell(cell1: i32, x: Option<Box<Cell>>) -> Option<Box<Cell>> {
                         current.cell
                     };
                     node.cell = min_val;
-                    node.right = deletecell(min_val, node.right);
+                    node.right = delete_cell(min_val, node.right);
                 }
             }
-
-            let left_height = height(node.left.as_ref());
-            let right_height = height(node.right.as_ref());
-            node.height = 1 + left_height.max(right_height);
-
+            node.height = 1 + cmp::max(height(node.left.as_ref()), height(node.right.as_ref()));
             let bal = balance(Some(&node));
-
             if bal > 1 && balance(node.left.as_ref()) >= 0 {
                 return Some(right_rotate(node));
             }
@@ -222,47 +221,47 @@ fn deletecell(cell1: i32, x: Option<Box<Cell>>) -> Option<Box<Cell>> {
                 node.right = Some(right_rotate(node.right.take().unwrap()));
                 return Some(left_rotate(node));
             }
-
             Some(node)
         }
     }
 }
 
-fn deleteedge(mut graph: Box<Graph>, cell: i32, cols: i32, formulalist: &[Formula]) {
-    let f: Formula = formulalist[cell as usize];
-
-    if f.op_type >= 1 && f.op_type <= 4 {
-        graph.adj[f.op_info1] = deletecell(cell, graph.adj[f.op_info1].take());
-    } else if f.op_type >= 5 && f.op_type <= 8 {
-        graph.adj[f.op_info1] = deletecell(cell, graph.adj[f.op_info1].take());
-        graph.adj[f.op_info2] = deletecell(cell, graph.adj[f.op_info2].take());
-    } else if f.op_type >= 9 && f.op_type <= 13 {
+pub fn delete_edge(graph: &mut Graph, cell: i32, cols: i32, formula_list: &[Formula]) {
+    let f = formula_list[cell as usize];
+    if (1..=4).contains(&f.op_type) {
+        graph.adj[f.op_info1 as usize] = delete_cell(cell, graph.adj[f.op_info1 as usize].take());
+    } else if (5..=8).contains(&f.op_type) {
+        graph.adj[f.op_info1 as usize] = delete_cell(cell, graph.adj[f.op_info1 as usize].take());
+        graph.adj[f.op_info2 as usize] = delete_cell(cell, graph.adj[f.op_info2 as usize].take());
+    } else if (9..=13).contains(&f.op_type) {
         let start = f.op_info1;
         let end = f.op_info2;
-        let strow = start / cols;
-        let endrow = end / cols;
-        let stcol = start % cols;
-        let endcol = end % cols;
-        for i in strow..=endrow {
-            for j in stcol..=endcol {
+        let start_row = start / cols;
+        let end_row = end / cols;
+        let start_col = start % cols;
+        let end_col = end % cols;
+        for i in start_row..=end_row {
+            for j in start_col..=end_col {
                 let index = (i * cols + j) as usize;
-                graph.adj[index] = deletecell(cell, graph.adj[index].take());
+                graph.adj[index] = delete_cell(cell, graph.adj[index].take());
             }
         }
     }
 }
 
-fn addedge_formula(graph: &mut Graph, cell: i32, cols: i32, formula_array: &[Formula]) {
+pub fn add_edge_formula(graph: &mut Graph, cell: i32, cols: i32, formula_array: &[Formula]) {
     let x = formula_array[cell as usize];
-    if x.op_type >= 1 && x.op_type <= 4 {
-        // Note: Adjust field names according to your definition.
-        graph.adj[x.op_info1] = Some(addedge(cell, graph.adj[x.op_info1].take()));
-    } else if x.op_type >= 5 && x.op_type <= 8 {
-        graph.adj[x.op_info1] = Some(addedge(cell, graph.adj[x.op_info1].take()));
-        graph.adj[x.op_info2] = Some(addedge(cell, graph.adj[x.op_info2].take()));
-    } else if x.op_type >= 9 && x.op_type <= 13 {
-        let start_cell = x.op_info1 as i32;
-        let end_cell = x.op_info2 as i32;
+    if (1..=4).contains(&x.op_type) {
+        graph.adj[x.op_info1 as usize] =
+            Some(add_edge(cell, graph.adj[x.op_info1 as usize].take()));
+    } else if (5..=8).contains(&x.op_type) {
+        graph.adj[x.op_info1 as usize] =
+            Some(add_edge(cell, graph.adj[x.op_info1 as usize].take()));
+        graph.adj[x.op_info2 as usize] =
+            Some(add_edge(cell, graph.adj[x.op_info2 as usize].take()));
+    } else if (9..=13).contains(&x.op_type) {
+        let start_cell = x.op_info1;
+        let end_cell = x.op_info2;
         let start_row = start_cell / cols;
         let start_col = start_cell % cols;
         let end_row = end_cell / cols;
@@ -270,67 +269,71 @@ fn addedge_formula(graph: &mut Graph, cell: i32, cols: i32, formula_array: &[For
         for row in start_row..=end_row {
             for col in start_col..=end_col {
                 let target_cell = row * cols + col;
-                graph.adj[target_cell as usize] = Some(addedge(cell, graph.adj[target_cell as usize].take()));
+                graph.adj[target_cell as usize] =
+                    Some(add_edge(cell, graph.adj[target_cell as usize].take()));
             }
         }
     }
 }
 
-fn topo_sort(graph: &Graph, start: i32, size: &mut i32, hascycle: &mut i32) -> Option<i32> {
+pub fn topological_sort(
+    graph: &Graph,
+    start: i32,
+    size: &mut i32,
+    has_cycle: &mut i32,
+) -> Option<Vec<i32>> {
     *size = 0;
-    *hascycle = 0;
-    let num=1;
-    let mut result = vec![0; CELLS];
-    let mut indeg = vec![0; CELLS];
+    *has_cycle = 0;
+    let mut num_reachable = 0;
+    let mut result: Vec<i32> = Vec::with_capacity(CELLS);
+    let mut in_degree = vec![0; CELLS];
     let mut reachable = vec![0; CELLS];
     let mut q = Queue::new();
     let mut vis = Queue::new();
     vis.enqueue(start);
     reachable[start as usize] = 1;
-    while(vis.front.is_some()){
+    num_reachable += 1;
+
+    while vis.front.is_some() {
         let cur = vis.dequeue().unwrap();
-        if(graph.adj[cur as usize].is_some()) {
-            let mut nodes = vec![0; CELLS];
-            let ct = 0;
-            get_nodes_from_avl(graph.adj[cur as usize].as_ref(), &mut nodes);
-            for i in 0..(ct - 1) {
-                let dep = nodes[i];
-                indeg[dep]+ +;
-                if (reachable[dep as usize] == 0) {
+        if let Some(ref avl) = graph.adj[cur as usize] {
+            let mut nodes = Vec::new();
+            get_nodes_from_avl(Some(avl), &mut nodes);
+            for &dep in &nodes {
+                in_degree[dep as usize] += 1;
+                if reachable[dep as usize] == 0 {
                     reachable[dep as usize] = 1;
-                    num+ +;
+                    num_reachable += 1;
                     vis.enqueue(dep);
                 }
             }
         }
     }
-    if(indeg[start as usize] > 0){
+    if in_degree[start as usize] > 0 {
         println!("Cycle detected");
         return None;
     }
     q.enqueue(start);
-    while(q.front.is_some()){
+    while q.front.is_some() {
         let cur = q.dequeue().unwrap();
-        let k= (*size)+1;
-        result[k]=cur;
-        if(graph.adj[cur].is_some()){
-            let mut nodes = vec![0; CELLS];
-            let ct=0;
-            get_nodes_from_avl(graph.adj[cur as usize].as_ref(), &mut nodes);
-            for i in 0..(ct - 1) {
-                let dep = nodes[i];
-                indeg[dep] -= 1;
-                if (indeg[dep as usize] == 0) {
+        result.push(cur);
+        if let Some(ref avl) = graph.adj[cur as usize] {
+            let mut nodes = Vec::new();
+            get_nodes_from_avl(Some(avl), &mut nodes);
+            for &dep in &nodes {
+                in_degree[dep as usize] -= 1;
+                if in_degree[dep as usize] == 0 {
                     q.enqueue(dep);
                 }
             }
         }
     }
-    if(*size<num){
-        *hascycle = 1;
+    *size = result.len() as i32;
+    if *size < num_reachable {
+        *has_cycle = 1;
         return None;
     }
-    return result;
+    Some(result)
 }
 
 fn arith(v1: i32, v2: i32, op: char) -> i32 {
@@ -338,43 +341,48 @@ fn arith(v1: i32, v2: i32, op: char) -> i32 {
         '+' => v1 + v2,
         '-' => v1 - v2,
         '*' => v1 * v2,
-        '/' => if v2 != 0 { v1 / v2 } else { INT_MIN },
-        _   => INT_MIN,
+        '/' => {
+            if v2 != 0 {
+                v1 / v2
+            } else {
+                INT_MIN
+            }
+        }
+        _ => INT_MIN,
     }
 }
 
-fn recalc(graph: &Graph, c: i32, arr: &mut [i32], start_cell: i32, formula_array: &[Formula]) {
-    let mut size=0;
-    let mut hascycle;
-    let sorted_cells = topo_sort(graph, start_cell, &mut size, &mut hascycle);
-    if hascycle {
-        println!("Error: Circular dependency detected. Command rejected.");
-        return;
-    }
-    for i in 0..size {
-        arr[sorted_cells[i]] = 0;
-    }
+pub fn recalculate(graph: &Graph, cols: i32, arr: &mut [i32], start_cell: i32, formula_array: &[Formula]) {
+    let mut size = 0;
+    let mut has_cycle = 0;
+    let sorted_cells = match topological_sort(graph, start_cell, &mut size, &mut has_cycle) {
+        Some(v) => v,
+        None => {
+            println!("Error: Circular dependency detected. Command rejected.");
+            return;
+        }
+    };
+
+    // Reset dependent cells to 0.
     for &cell in &sorted_cells {
-        let f = formula_array[cell];
+        arr[cell as usize] = 0;
+    }
+
+    for &cell in &sorted_cells {
+        let f = formula_array[cell as usize];
         if f.op_type == 0 {
             if f.op_info1 == INT_MIN {
-                println!(
-                    "Error: Cell {} has an invalid constant value (INT_MIN)",
-                    cell
-                );
-                arr[cell] = INT_MIN;
+                println!("Error: Cell {} has an invalid constant value (INT_MIN)", cell);
+                arr[cell as usize] = INT_MIN;
             } else {
-                arr[cell] = f.op_info1;
+                arr[cell as usize] = f.op_info1;
             }
         } else if (1..=4).contains(&f.op_type) {
             let v1 = arr[f.op_info1 as usize];
             let v2 = f.op_info2;
             if v1 == INT_MIN {
-                println!(
-                    "Error: Cell {} has invalid operand (v1 is INT_MIN)",
-                    f.op_info1
-                );
-                arr[cell] = INT_MIN;
+                println!("Error: Cell {} has invalid operand (v1 is INT_MIN)", f.op_info1);
+                arr[cell as usize] = INT_MIN;
                 continue;
             }
             let op = match f.op_type {
@@ -385,23 +393,20 @@ fn recalc(graph: &Graph, c: i32, arr: &mut [i32], start_cell: i32, formula_array
                 _ => unreachable!(),
             };
             if op == '/' && v2 == 0 {
-                arr[cell] = INT_MIN;
+                arr[cell as usize] = INT_MIN;
                 continue;
             }
-            arr[cell] = arith(v1, v2, op);
+            arr[cell as usize] = arith(v1, v2, op);
         } else if (5..=8).contains(&f.op_type) {
             let v1 = arr[f.op_info1 as usize];
             let v2 = arr[f.op_info2 as usize];
             if f.op_type == 8 && v2 == 0 {
-                arr[cell] = INT_MIN;
+                arr[cell as usize] = INT_MIN;
                 continue;
             }
             if v1 == INT_MIN || v2 == INT_MIN {
-                println!(
-                    "Error: One of the operands for cell {} is INT_MIN",
-                    cell
-                );
-                arr[cell] = INT_MIN;
+                println!("Error: One of the operands for cell {} is INT_MIN", cell);
+                arr[cell as usize] = INT_MIN;
                 continue;
             }
             let op = match f.op_type {
@@ -411,25 +416,25 @@ fn recalc(graph: &Graph, c: i32, arr: &mut [i32], start_cell: i32, formula_array
                 8 => '/',
                 _ => unreachable!(),
             };
-            arr[cell] = arith(v1, v2, op);
+            arr[cell as usize] = arith(v1, v2, op);
         } else if (9..=13).contains(&f.op_type) {
             let start_cell = f.op_info1;
             let end_cell = f.op_info2;
-            let start_row = start_cell / C;
-            let start_col = start_cell % C;
-            let end_row = end_cell / C;
-            let end_col = end_cell % C;
+            let start_row = start_cell / cols;
+            let start_col = start_cell % cols;
+            let end_row = end_cell / cols;
+            let end_col = end_cell % cols;
 
             let mut sum = 0;
             let mut count = 0;
-            let mut stdev_squared = 0;
+            let mut standard_dev_squared = 0;
             let mut min_val = INT_MAX;
             let mut max_val = INT_MIN;
             let mut has_error = false;
 
             for row in start_row..=end_row {
                 for col in start_col..=end_col {
-                    let idx = (row * C + col) as usize;
+                    let idx = (row * cols + col) as usize;
                     let val = arr[idx];
                     if val == INT_MIN {
                         has_error = true;
@@ -449,44 +454,43 @@ fn recalc(graph: &Graph, c: i32, arr: &mut [i32], start_cell: i32, formula_array
                 }
             }
 
-            if has_error {
-                arr[cell] = INT_MIN;
+            if has_error || count == 0 {
+                arr[cell as usize] = INT_MIN;
                 continue;
             }
 
             let mean = sum as f64 / count as f64;
             for row in start_row..=end_row {
                 for col in start_col..=end_col {
-                    let idx = (row * C + col) as usize;
-                    stdev_squared += ((arr[idx] as f64 - mean).powi(2)) as i32;
+                    let idx = (row * cols + col) as usize;
+                    standard_dev_squared += (arr[idx] as f64 - mean).powi(2) as i32;
                 }
             }
 
-            arr[cell] = match f.op_type {
+            arr[cell as usize] = match f.op_type {
                 9 => min_val,
                 10 => max_val,
                 11 => sum / count,
                 12 => sum,
-                13 => ( (stdev_squared as f64 / count as f64).sqrt() ) as i32,
+                13 => (standard_dev_squared as f64 / count as f64).sqrt() as i32,
                 _ => unreachable!(),
             };
         } else if f.op_type == 14 {
-            let sleep_value = if f.op_info1 == cell as i32 {
+            let sleep_value = if f.op_info1 == cell {
                 f.op_info2
             } else {
                 arr[f.op_info1 as usize]
             };
-
             if sleep_value == INT_MIN {
                 println!("Error: Invalid sleep value in cell {}", cell);
-                arr[cell] = INT_MIN;
+                arr[cell as usize] = INT_MIN;
                 continue;
             } else if sleep_value <= 0 {
-                arr[cell] = sleep_value;
+                arr[cell as usize] = sleep_value;
                 continue;
             }
-            sleep(sleep_value); // Perform sleep.
-            arr[cell] = sleep_value;
+            thread::sleep(Duration::from_secs(sleep_value as u64));
+            arr[cell as usize] = sleep_value;
         }
     }
 }
