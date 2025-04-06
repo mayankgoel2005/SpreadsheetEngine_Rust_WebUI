@@ -3,7 +3,7 @@ use std::cmp;
 use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
-
+use crate::input_parser::HAS;
 const INT_MIN: i32 = i32::MIN;
 const INT_MAX: i32 = i32::MAX;
 const CELLS: usize = 1000;
@@ -66,11 +66,11 @@ fn get_nodes_from_avl(root: Option<&Box<Cell>>, nodes: &mut Vec<i32>) {
 #[derive(Copy, Clone, Debug)]
 pub struct Formula {
     pub op_type: i32,
-    pub op_info1: i32,
-    pub op_info2: i32,
+    pub p1: i32,
+    pub p2: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cell {
     cell: i32,
     height: i32,
@@ -78,23 +78,31 @@ pub struct Cell {
     right: Option<Box<Cell>>,
 }
 
-#[derive(Debug)]
 pub struct Graph {
-    pub adj: vec![Option::<Box<Cell>>::None; 1000],
+    pub adj: Vec<Option<Box<Cell>>>,
 }
 
-pub fn add_formula(cell: i32, op_type: i32, p1: i32, p2: i32, formula_list: &mut [Formula]) {
+impl Graph {
+    pub fn new() -> Self {
+        Graph {
+            adj: vec![None; 1000],
+        }
+    }
+}
+
+pub fn add_formula(_graph: &mut Graph, cell: i32, p1: i32, p2: i32, op_type: i32, formula_list: &mut [Formula]) {
+    println!("{}",cell);
     let f = if op_type == 0 {
         Formula {
             op_type,
-            op_info1: p1,
-            op_info2: -1,
+            p1,
+            p2: -1,
         }
     } else {
         Formula {
             op_type,
-            op_info1: p1,
-            op_info2: p2,
+            p1,
+            p2,
         }
     };
     formula_list[cell as usize] = f;
@@ -229,13 +237,13 @@ pub fn delete_cell(cell1: i32, x: Option<Box<Cell>>) -> Option<Box<Cell>> {
 pub fn delete_edge(graph: &mut Graph, cell: i32, cols: i32, formula_list: &[Formula]) {
     let f = formula_list[cell as usize];
     if (1..=4).contains(&f.op_type) {
-        graph.adj[f.op_info1 as usize] = delete_cell(cell, graph.adj[f.op_info1 as usize].take());
+        graph.adj[f.p1 as usize] = delete_cell(cell, graph.adj[f.p1 as usize].take());
     } else if (5..=8).contains(&f.op_type) {
-        graph.adj[f.op_info1 as usize] = delete_cell(cell, graph.adj[f.op_info1 as usize].take());
-        graph.adj[f.op_info2 as usize] = delete_cell(cell, graph.adj[f.op_info2 as usize].take());
+        graph.adj[f.p1 as usize] = delete_cell(cell, graph.adj[f.p1 as usize].take());
+        graph.adj[f.p2 as usize] = delete_cell(cell, graph.adj[f.p2 as usize].take());
     } else if (9..=13).contains(&f.op_type) {
-        let start = f.op_info1;
-        let end = f.op_info2;
+        let start = f.p1;
+        let end = f.p2;
         let start_row = start / cols;
         let end_row = end / cols;
         let start_col = start % cols;
@@ -252,16 +260,16 @@ pub fn delete_edge(graph: &mut Graph, cell: i32, cols: i32, formula_list: &[Form
 pub fn add_edge_formula(graph: &mut Graph, cell: i32, cols: i32, formula_array: &[Formula]) {
     let x = formula_array[cell as usize];
     if (1..=4).contains(&x.op_type) {
-        graph.adj[x.op_info1 as usize] =
-            Some(add_edge(cell, graph.adj[x.op_info1 as usize].take()));
+        graph.adj[x.p1 as usize] =
+            Some(add_edge(cell, graph.adj[x.p1 as usize].take()));
     } else if (5..=8).contains(&x.op_type) {
-        graph.adj[x.op_info1 as usize] =
-            Some(add_edge(cell, graph.adj[x.op_info1 as usize].take()));
-        graph.adj[x.op_info2 as usize] =
-            Some(add_edge(cell, graph.adj[x.op_info2 as usize].take()));
+        graph.adj[x.p1 as usize] =
+            Some(add_edge(cell, graph.adj[x.p1 as usize].take()));
+        graph.adj[x.p2 as usize] =
+            Some(add_edge(cell, graph.adj[x.p2 as usize].take()));
     } else if (9..=13).contains(&x.op_type) {
-        let start_cell = x.op_info1;
-        let end_cell = x.op_info2;
+        let start_cell = x.p1;
+        let end_cell = x.p2;
         let start_row = start_cell / cols;
         let start_col = start_cell % cols;
         let end_row = end_cell / cols;
@@ -277,7 +285,7 @@ pub fn add_edge_formula(graph: &mut Graph, cell: i32, cols: i32, formula_array: 
 }
 
 pub fn topological_sort(
-    graph: &Graph,
+    graph: &mut Graph,
     start: i32,
     size: &mut i32,
     has_cycle: &mut i32,
@@ -336,12 +344,12 @@ pub fn topological_sort(
     Some(result)
 }
 
-fn arith(v1: i32, v2: i32, op: char) -> i32 {
+pub fn arith(v1: i32, v2: i32, op: Option<char>) -> i32 {
     match op {
-        '+' => v1 + v2,
-        '-' => v1 - v2,
-        '*' => v1 * v2,
-        '/' => {
+        Some('+') => v1 + v2,
+        Some('-') => v1 - v2,
+        Some('*') => v1 * v2,
+        Some('/') => {
             if v2 != 0 {
                 v1 / v2
             } else {
@@ -352,9 +360,10 @@ fn arith(v1: i32, v2: i32, op: char) -> i32 {
     }
 }
 
-pub fn recalculate(graph: &Graph, cols: i32, arr: &mut [i32], start_cell: i32, formula_array: &[Formula]) {
+pub fn recalculate(graph: &mut Graph, cols: i32, arr: &mut [i32], start_cell: i32, formula_array: &[Formula]) {
     let mut size = 0;
     let mut has_cycle = 0;
+    println!("{}",start_cell);
     let sorted_cells = match topological_sort(graph, start_cell, &mut size, &mut has_cycle) {
         Some(v) => v,
         None => {
@@ -369,19 +378,22 @@ pub fn recalculate(graph: &Graph, cols: i32, arr: &mut [i32], start_cell: i32, f
     }
 
     for &cell in &sorted_cells {
+        println!("{}",cell);
         let f = formula_array[cell as usize];
+        println!("{} oh", f.op_type);
         if f.op_type == 0 {
-            if f.op_info1 == INT_MIN {
+            if f.p1 == INT_MIN {
                 println!("Error: Cell {} has an invalid constant value (INT_MIN)", cell);
                 arr[cell as usize] = INT_MIN;
             } else {
-                arr[cell as usize] = f.op_info1;
+                arr[cell as usize] = f.p1;
+                println!("{} == {}", cell, f.p1);
             }
         } else if (1..=4).contains(&f.op_type) {
-            let v1 = arr[f.op_info1 as usize];
-            let v2 = f.op_info2;
+            let v1 = arr[f.p1 as usize];
+            let v2 = f.p2;
             if v1 == INT_MIN {
-                println!("Error: Cell {} has invalid operand (v1 is INT_MIN)", f.op_info1);
+                println!("Error: Cell {} has invalid operand (v1 is INT_MIN)", f.p1);
                 arr[cell as usize] = INT_MIN;
                 continue;
             }
@@ -396,10 +408,10 @@ pub fn recalculate(graph: &Graph, cols: i32, arr: &mut [i32], start_cell: i32, f
                 arr[cell as usize] = INT_MIN;
                 continue;
             }
-            arr[cell as usize] = arith(v1, v2, op);
+            arr[cell as usize] = arith(v1, v2, Some(op));
         } else if (5..=8).contains(&f.op_type) {
-            let v1 = arr[f.op_info1 as usize];
-            let v2 = arr[f.op_info2 as usize];
+            let v1 = arr[f.p1 as usize];
+            let v2 = arr[f.p2 as usize];
             if f.op_type == 8 && v2 == 0 {
                 arr[cell as usize] = INT_MIN;
                 continue;
@@ -416,10 +428,11 @@ pub fn recalculate(graph: &Graph, cols: i32, arr: &mut [i32], start_cell: i32, f
                 8 => '/',
                 _ => unreachable!(),
             };
-            arr[cell as usize] = arith(v1, v2, op);
+            arr[cell as usize] = arith(v1, v2, Some(op));
         } else if (9..=13).contains(&f.op_type) {
-            let start_cell = f.op_info1;
-            let end_cell = f.op_info2;
+            println!("hey");
+            let start_cell = f.p1;
+            let end_cell = f.p2;
             let start_row = start_cell / cols;
             let start_col = start_cell % cols;
             let end_row = end_cell / cols;
@@ -476,10 +489,10 @@ pub fn recalculate(graph: &Graph, cols: i32, arr: &mut [i32], start_cell: i32, f
                 _ => unreachable!(),
             };
         } else if f.op_type == 14 {
-            let sleep_value = if f.op_info1 == cell {
-                f.op_info2
+            let sleep_value = if f.p1 == cell {
+                f.p2
             } else {
-                arr[f.op_info1 as usize]
+                arr[f.p1 as usize]
             };
             if sleep_value == INT_MIN {
                 println!("Error: Invalid sleep value in cell {}", cell);

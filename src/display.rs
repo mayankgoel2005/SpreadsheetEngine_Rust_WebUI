@@ -47,7 +47,7 @@ pub fn scroller_display(
     curry: &mut usize,
     cols: usize,
     rows: usize,
-    _graph: &Graph,
+    graph: &mut Graph,
 ) {
     let mut flag = false;
     if cmd == "w" {
@@ -90,8 +90,7 @@ pub fn scroller_display(
         }
     } else if cmd.starts_with("scroll_to ") {
         // Extract the cell reference part (from index 10 to end)
-        let cell_ref = &cmd[10..];
-        let cell = cell_parser(cell_ref, cols as i32, rows as i32, 0, cell_ref.len().saturating_sub(1));
+        let cell = cell_parser(cmd, cols as i32, rows as i32, 10, (cmd.len() - 1) as i32, graph);
         if cell == -1 {
             flag = true;
         } else {

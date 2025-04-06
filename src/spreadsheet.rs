@@ -30,8 +30,8 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
         formula_array: vec![
             Formula {
                 op_type: 0,
-                op_info1: 0,
-                op_info2: 0,
+                p1: 0,
+                p2: 0,
             };
             total_cells
         ],

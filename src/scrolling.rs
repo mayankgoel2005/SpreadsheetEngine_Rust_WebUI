@@ -14,7 +14,7 @@ pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) {
         &mut spreadsheet.curry,
         spreadsheet.cols,
         spreadsheet.rows,
-        &spreadsheet.graph,
+        &mut spreadsheet.graph,
     );
 }
 
