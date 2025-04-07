@@ -13,33 +13,43 @@ fn validate_range(range_start: i32, range_end: i32, cols: i32) -> bool {
 }
 
 pub fn min_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: usize, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let first_cell = cell_parser(a, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
-    if (first_cell == -1) {
+    let ref_sub=&a[..pos_equal_to];
+    let first_cell = cell_parser(ref_sub, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
+    if first_cell == -1 {
         println!("Invalid destination cell\n");
         return;
     }
     let open_paren = a[pos_equal_to..].find('(');
     let close_paren = a[pos_equal_to..].find(')');
-    if let (Some(&open_paren), Some(&close_paren)) = (open_paren.as_ref(), close_paren.as_ref()) {
-        if close_paren <= open_paren + 1 {
+    let colon;
+    let open;
+    let close;
+    if let (Some(open_rel), Some(close_rel)) = (open_paren, close_paren) {
+        open = pos_equal_to + open_rel;
+        close = pos_equal_to + close_rel;
+
+        if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
             return;
         }
-    }else{
+
+        let colon_pos = a[open + 1..close].find(':');
+        if colon_pos.is_none() {
+            println!("Invalid range: Missing ':'\n");
+            return;
+        }
+
+        colon = open + 1 + colon_pos.unwrap();
+        println!("open: {}, colon: {}", open, colon);
+    } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
     }
-    let colon_pos = a[open_paren.as_ref().unwrap() + 1..].find(':');
-    if colon_pos.is_none() {
-        println!("Invalid range: Missing ':'\n");
-        return;
-    }
-    let open = open_paren.unwrap();
-    let colon = colon_pos.unwrap();
-    let close = close_paren.unwrap();
-    let range_start = cell_parser(a, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
-    let range_end = cell_parser(a, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
-    if (range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols)) {
+    let ref_sub1 = &a[open+1..colon];
+    let ref_sub2=&a[colon+1..close];
+    let range_start = cell_parser(ref_sub1, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
+    let range_end = cell_parser(ref_sub2, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
+    if range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols) {
         println!("Invalid range\n");
         return;
     }
@@ -78,37 +88,47 @@ pub fn min_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
 }
 
 pub fn max_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: usize, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let first_cell = cell_parser(a, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
-    if (first_cell == -1) {
+    let ref_sub=&a[..pos_equal_to];
+    let first_cell = cell_parser(ref_sub, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
+    if first_cell == -1 {
         println!("Invalid destination cell\n");
         return;
     }
     let open_paren = a[pos_equal_to..].find('(');
     let close_paren = a[pos_equal_to..].find(')');
-    if let (Some(&open_paren), Some(&close_paren)) = (open_paren.as_ref(), close_paren.as_ref()) {
-        if close_paren <= open_paren + 1 {
+    let colon;
+    let open;
+    let close;
+    if let (Some(open_rel), Some(close_rel)) = (open_paren, close_paren) {
+        open = pos_equal_to + open_rel;
+        close = pos_equal_to + close_rel;
+
+        if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
             return;
         }
-    }else{
+
+        let colon_pos = a[open + 1..close].find(':');
+        if colon_pos.is_none() {
+            println!("Invalid range: Missing ':'\n");
+            return;
+        }
+
+        colon = open + 1 + colon_pos.unwrap();
+        println!("open: {}, colon: {}", open, colon);
+    } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
     }
-    let colon_pos = a[open_paren.as_ref().unwrap() + 1..].find(':');
-    if colon_pos.is_none() {
-        println!("Invalid range: Missing ':'\n");
-        return;
-    }
-    let open = open_paren.unwrap();
-    let colon = colon_pos.unwrap();
-    let close = close_paren.unwrap();
-    let range_start = cell_parser(a, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
-    let range_end = cell_parser(a, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
-    if (range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols)) {
+    let ref_sub1 = &a[open+1..colon];
+    let ref_sub2=&a[colon+1..close];
+    let range_start = cell_parser(ref_sub1, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
+    let range_end = cell_parser(ref_sub2, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
+    if range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols) {
         println!("Invalid range\n");
         return;
     }
-    add_formula(graph, first_cell, range_start, range_end, 9, formula_array);
+    add_formula(graph, first_cell, range_start, range_end, 10, formula_array);
 
     let mut max_value = arr[range_start as usize];
 
@@ -133,7 +153,7 @@ pub fn max_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
             for col in col_start..=col_end {
                 let idx = row * cols + col;
                 graph.adj[idx as usize] = Some(add_edge(first_cell, graph.adj[idx as usize].take()));
-                if (arr[idx as usize] > max_value) {
+                if arr[idx as usize] > max_value {
                     max_value = arr[idx as usize];
                 }
             }
@@ -143,37 +163,47 @@ pub fn max_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
 }
 
 pub fn avg_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: usize, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let first_cell = cell_parser(a, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
-    if (first_cell == -1) {
+    let ref_sub=&a[..pos_equal_to];
+    let first_cell = cell_parser(ref_sub, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
+    if first_cell == -1 {
         println!("Invalid destination cell\n");
         return;
     }
     let open_paren = a[pos_equal_to..].find('(');
     let close_paren = a[pos_equal_to..].find(')');
-    if let (Some(&open_paren), Some(&close_paren)) = (open_paren.as_ref(), close_paren.as_ref()) {
-        if close_paren <= open_paren + 1 {
+    let colon;
+    let open;
+    let close;
+    if let (Some(open_rel), Some(close_rel)) = (open_paren, close_paren) {
+        open = pos_equal_to + open_rel;
+        close = pos_equal_to + close_rel;
+
+        if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
             return;
         }
-    }else{
+
+        let colon_pos = a[open + 1..close].find(':');
+        if colon_pos.is_none() {
+            println!("Invalid range: Missing ':'\n");
+            return;
+        }
+
+        colon = open + 1 + colon_pos.unwrap();
+        println!("open: {}, colon: {}", open, colon);
+    } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
     }
-    let colon_pos = a[open_paren.as_ref().unwrap() + 1..].find(':');
-    if colon_pos.is_none() {
-        println!("Invalid range: Missing ':'\n");
-        return;
-    }
-    let open = open_paren.unwrap();
-    let colon = colon_pos.unwrap();
-    let close = close_paren.unwrap();
-    let range_start = cell_parser(a, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
-    let range_end = cell_parser(a, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
-    if (range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols)) {
+    let ref_sub1 = &a[open+1..colon];
+    let ref_sub2=&a[colon+1..close];
+    let range_start = cell_parser(ref_sub1, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
+    let range_end = cell_parser(ref_sub2, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
+    if range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols) {
         println!("Invalid range\n");
         return;
     }
-    add_formula(graph, first_cell, range_start, range_end, 9, formula_array);
+    add_formula(graph, first_cell, range_start, range_end,  11, formula_array);
 
     let start_row = range_start / cols;
     let start_col = range_start % cols;
@@ -197,37 +227,47 @@ pub fn avg_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
 }
 
 pub fn sum_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: usize, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let first_cell = cell_parser(a, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
-    if (first_cell == -1) {
+    let ref_sub=&a[..pos_equal_to];
+    let first_cell = cell_parser(ref_sub, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
+    if first_cell == -1 {
         println!("Invalid destination cell\n");
         return;
     }
     let open_paren = a[pos_equal_to..].find('(');
     let close_paren = a[pos_equal_to..].find(')');
-    if let (Some(&open_paren), Some(&close_paren)) = (open_paren.as_ref(), close_paren.as_ref()) {
-        if close_paren <= open_paren + 1 {
+    let colon;
+    let open;
+    let close;
+    if let (Some(open_rel), Some(close_rel)) = (open_paren, close_paren) {
+        open = pos_equal_to + open_rel;
+        close = pos_equal_to + close_rel;
+
+        if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
             return;
         }
-    }else{
+
+        let colon_pos = a[open + 1..close].find(':');
+        if colon_pos.is_none() {
+            println!("Invalid range: Missing ':'\n");
+            return;
+        }
+
+        colon = open + 1 + colon_pos.unwrap();
+        println!("open: {}, colon: {}", open, colon);
+    } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
     }
-    let colon_pos = a[open_paren.as_ref().unwrap() + 1..].find(':');
-    if colon_pos.is_none() {
-        println!("Invalid range: Missing ':'\n");
-        return;
-    }
-    let open = open_paren.unwrap();
-    let colon = colon_pos.unwrap();
-    let close = close_paren.unwrap();
-    let range_start = cell_parser(a, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
-    let range_end = cell_parser(a, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
-    if (range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols)) {
+    let ref_sub1 = &a[open+1..colon];
+    let ref_sub2=&a[colon+1..close];
+    let range_start = cell_parser(ref_sub1, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
+    let range_end = cell_parser(ref_sub2, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
+    if range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols) {
         println!("Invalid range\n");
         return;
     }
-    add_formula(graph, first_cell, range_start, range_end, 9, formula_array);
+    add_formula(graph, first_cell, range_start, range_end, 12, formula_array);
 
     let start_row = range_start / cols;
     let start_col = range_start % cols;
@@ -248,37 +288,47 @@ pub fn sum_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
 }
 
 pub fn standard_dev_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: usize, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let first_cell = cell_parser(a, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
-    if (first_cell == -1) {
+    let ref_sub=&a[..pos_equal_to];
+    let first_cell = cell_parser(ref_sub, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
+    if first_cell == -1 {
         println!("Invalid destination cell\n");
         return;
     }
     let open_paren = a[pos_equal_to..].find('(');
     let close_paren = a[pos_equal_to..].find(')');
-    if let (Some(&open_paren), Some(&close_paren)) = (open_paren.as_ref(), close_paren.as_ref()) {
-        if close_paren <= open_paren + 1 {
+    let colon;
+    let open;
+    let close;
+    if let (Some(open_rel), Some(close_rel)) = (open_paren, close_paren) {
+        open = pos_equal_to + open_rel;
+        close = pos_equal_to + close_rel;
+
+        if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
             return;
         }
-    }else{
+
+        let colon_pos = a[open + 1..close].find(':');
+        if colon_pos.is_none() {
+            println!("Invalid range: Missing ':'\n");
+            return;
+        }
+
+        colon = open + 1 + colon_pos.unwrap();
+        println!("open: {}, colon: {}", open, colon);
+    } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
     }
-    let colon_pos = a[open_paren.as_ref().unwrap() + 1..].find(':');
-    if colon_pos.is_none() {
-        println!("Invalid range: Missing ':'\n");
-        return;
-    }
-    let open = open_paren.unwrap();
-    let colon = colon_pos.unwrap();
-    let close = close_paren.unwrap();
-    let range_start = cell_parser(a, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
-    let range_end = cell_parser(a, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
-    if (range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols)) {
+    let ref_sub1 = &a[open+1..colon];
+    let ref_sub2=&a[colon+1..close];
+    let range_start = cell_parser(ref_sub1, cols, rows, (open as i32) + 1, (colon as i32) - 1, graph);
+    let range_end = cell_parser(ref_sub2, cols, rows, (colon as i32) + 1, (close as i32) - 1, graph);
+    if range_start == -1 || range_end == -1 || !validate_range(range_start, range_end, cols) {
         println!("Invalid range\n");
         return;
     }
-    add_formula(graph, first_cell, range_start, range_end, 9, formula_array);
+    add_formula(graph, first_cell, range_start, range_end, 13, formula_array);
 
     let start_row = range_start / cols;
     let start_col = range_start % cols;
@@ -315,7 +365,7 @@ pub fn standard_dev_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _po
 
 pub fn sleep_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: usize, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
     let target_cell = cell_parser(a, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
-    if (target_cell == -1) {
+    if target_cell == -1 {
         println!("Invalid destination cell\n");
         return;
     }
@@ -346,7 +396,6 @@ pub fn sleep_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: 
 
         graph.adj[ref_cell as usize] = Some(add_edge(target_cell, graph.adj[ref_cell as usize].take()));
     } else {
-        // Parse direct sleep value
         match a[open + 1..close].trim().parse::<i32>() {
             Ok(val) => sleep_value = val,
             Err(_) => {
