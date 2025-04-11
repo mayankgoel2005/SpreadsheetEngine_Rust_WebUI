@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "lab1_cli"     # Your CLI binary name
+name = "lab1_2023CS10204_2023CS10076_2023CS10186"     # Your CLI binary name
 path = "src/bin/main.rs"
 
 [dependencies]

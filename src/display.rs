@@ -110,13 +110,19 @@ pub fn scroller_display(
         // On an invalid scroll, do nothing.
     }
 }
-
 pub fn render_spreadsheet(curr_x: usize, curry: usize, arr: &[i32], cols: usize, rows: usize) -> String {
     let mut output = String::new();
+    
+    // Add a debug prefix so you can see something in the console output.
+    output.push_str("DEBUG: Rendering Spreadsheet\n\n");
 
-    // Build column headers.
-    output.push_str("      ");
+    // If your code is in any way returning early, or is empty, you won’t see anything.
+    // Make sure you have logic like this:
     let num_cols = std::cmp::min(cols.saturating_sub(curr_x), 10);
+    let num_rows = std::cmp::min(rows.saturating_sub(curry), 10);
+
+    // Build column headers
+    output.push_str("      ");
     for i in 0..num_cols {
         let mut val = (curr_x + i + 1) as i32; // 1-indexed
         let mut col_str = String::new();
@@ -131,12 +137,11 @@ pub fn render_spreadsheet(curr_x: usize, curry: usize, arr: &[i32], cols: usize,
     }
     output.push('\n');
 
-    // Build rows with cell values.
-    let num_rows = std::cmp::min(rows.saturating_sub(curry), 10);
+    // Build row lines
     for j in 0..num_rows {
         output.push_str(&format!("{:<3}   ", curry + j + 1));
         for i in 0..num_cols {
-            let index = (curr_x + i) + cols * (curry + j);
+            let index = (curry + j) * cols + (curr_x + i);
             let value = arr[index];
             if value == std::i32::MIN {
                 output.push_str(&format!("{:<10}", "ERR"));
@@ -146,5 +151,6 @@ pub fn render_spreadsheet(curr_x: usize, curry: usize, arr: &[i32], cols: usize,
         }
         output.push('\n');
     }
+
     output
 }

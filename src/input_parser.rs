@@ -1,54 +1,80 @@
+// src/input_parser.rs
+
 use std::time::Instant;
 use crate::spreadsheet::Spreadsheet;
-use crate::graph::{Graph, Formula, arith, add_formula, add_edge, delete_edge, recalculate, add_edge_formula};
-use crate::functions::{max_func, sum_func, standard_dev_func, avg_func, min_func, sleep_func};
+use crate::graph::{
+    Graph, Formula, arith, add_formula, add_edge, delete_edge, recalculate, add_edge_formula
+};
+use crate::functions::{
+    max_func, sum_func, standard_dev_func, avg_func, min_func, sleep_func
+};
+
+// Keep track of old values in case you revert them
 static mut OLD_VALUE: i32 = 0;
 static mut OLD_OP_TYPE: i32 = 0;
 static mut OLD_P1: i32 = 0;
 static mut OLD_P2: i32 = 0;
 pub static mut HAS: i32 = 0;
 
+// Utility: Check if char is A-Z
 fn is_alpha(c: char) -> bool {
     c >= 'A' && c <= 'Z'
 }
 
+// Utility: Check if char is 0-9
 fn is_digit(c: char) -> bool {
     c >= '0' && c <= '9'
 }
 
-pub fn cell_parser(a: &str, c: i32, r: i32, start: i32, end: i32, _graph: &mut Graph) -> i32 {
+/// Parse a cell reference like "A1", returning a 1D index (row * cols + col)
+/// or -1 if invalid/out of range.
+pub fn cell_parser(
+    formula: &str,
+    cols: i32,
+    rows: i32,
+    _start: i32,
+    _end: i32,
+    _graph: &mut Graph
+) -> i32 {
     let mut cell_col = 0;
     let mut cell_row = 0;
     let mut dfound = false;
 
-    for i in a.chars(){
-        println!("x={}",i);
-        if is_alpha(i) {
+    for ch in formula.chars() {
+        println!("x={}", ch);
+        if is_alpha(ch) {
             if !dfound {
-                cell_col = cell_col * 26 + (i as i32 - 'A' as i32 + 1);
-                println!("cell_col={}",cell_col);
-
+                // Convert letter(s) to 1-based col index
+                cell_col = cell_col * 26 + (ch as i32 - 'A' as i32 + 1);
+                println!("cell_col={}", cell_col);
             } else {
+                // We encountered digits, then an alpha => invalid
                 return -1;
             }
-        } else if is_digit(i) {
-            cell_row = cell_row * 10 + (i as i32 - '0' as i32);
+        } else if is_digit(ch) {
+            // Now we parse row digits
+            cell_row = cell_row * 10 + (ch as i32 - '0' as i32);
             dfound = true;
         } else {
             return -1;
         }
     }
+
+    // Convert from 1-based to 0-based
     cell_col -= 1;
     cell_row -= 1;
-    println!("{}  {}  {}  {}",c,r, cell_col, cell_row);
-    if cell_col < 0 || cell_row < 0 || cell_col >= c || cell_row >= r {
+    println!("{}  {}  {}  {}", cols, rows, cell_col, cell_row);
+
+    // Check bounds
+    if cell_col < 0 || cell_row < 0 || cell_col >= cols || cell_row >= rows {
         -1
     } else {
-        cell_row * c + cell_col
+        cell_row * cols + cell_col
     }
 }
 
-pub fn return_optype(op: Option<char>) -> i32 {
+/// Return an integer representing the operator type (+, -, *, /).
+fn return_optype(op: Option<char>) -> i32 {
     match op {
         Some('+') => 1,
         Some('-') => 2,
@@ -58,64 +84,91 @@ pub fn return_optype(op: Option<char>) -> i32 {
     }
 }
 
-pub fn value_func(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let ref_sub=&a[..pos_equal as usize];
-    let first=cell_parser(ref_sub,c,r,0,pos_equal-1,graph);
-    println!("first={}",first);
-    if first==-1 {
+/// Handle a formula that is just `<cell> = <value>` or `<cell> = <someOtherCell>`.
+fn value_func(
+    formula: &str,
+    c: i32,
+    r: i32,
+    pos_equal: i32,
+    pos_end: i32,
+    arr: &mut [i32],
+    graph: &mut Graph,
+    formula_array: &mut [Formula]
+) {
+    // E.g., formula might be "A1 = 42" or "A1 = B2"
+    let ref_sub = &formula[..pos_equal as usize];
+    let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
+    println!("first={}", first);
+
+    if first == -1 {
         println!("invalid cell");
         return;
     }
+
     unsafe {
+        // Save old state for potential revert
         OLD_VALUE = arr[first as usize];
         OLD_OP_TYPE = formula_array[first as usize].op_type;
         OLD_P1 = formula_array[first as usize].p1;
         OLD_P2 = formula_array[first as usize].p2;
     }
-    if formula_array[first as usize].op_type>0 {
-        delete_edge(graph,first,c,formula_array);
+
+    // If there was an existing formula, remove its edges
+    if formula_array[first as usize].op_type > 0 {
+        delete_edge(graph, first, c, formula_array);
     }
-    let mut second=-1;
-    let mut is_cell=0;
-    let mut is_negative=0;
-    let mut pos_eq=pos_equal;
-    let x=a.chars().nth(pos_eq as usize + 1).unwrap();
-    if x=='-' || x=='+' {
-        if x=='-' {
-            is_negative=1;
+
+    let mut second = -1;
+    let mut is_cell = 0;
+    let mut is_negative = 0;
+    let mut pos_eq = pos_equal;
+    let x = formula.chars().nth(pos_eq as usize + 1).unwrap();
+
+    // Check if next character is +/- sign
+    if x == '-' || x == '+' {
+        if x == '-' {
+            is_negative = 1;
         }
-        pos_eq+=1;
+        pos_eq += 1;
     }
+
+    // Distinguish literal number vs cell reference
     if is_digit(x) {
-        println!("{}",x);
-        let tmp: &str = &a[(pos_eq + 1) as usize..];
+        // It's a numeric literal
+        println!("{}", x);
+        let tmp = &formula[(pos_eq + 1) as usize..];
         second = tmp.trim().parse().unwrap_or(0);
-        println!("second={}",second);
-    }else{
-        second=cell_parser(a,c,r,pos_eq+1,pos_end-1,graph);
-        is_cell=1;
+        println!("second={}", second);
+    } else {
+        // It's a cell reference
+        second = cell_parser(formula, c, r, pos_eq + 1, pos_end - 1, graph);
+        is_cell = 1;
     }
-    if second==-1 {
+
+    if second == -1 {
         println!("invalid cell");
         return;
     }
-    if is_negative==1 && is_cell==0 {
-        second=-second;
+
+    // If negative sign was found and it's a direct number
+    if is_negative == 1 && is_cell == 0 {
+        second = -second;
     }
+
+    // If second is a literal
     if is_cell == 0 {
         arr[first as usize] = second;
-        add_formula(graph, first, second, 0, 0,formula_array);
-        recalculate(graph, c, arr, first,formula_array);
-    }
-    else {
-        if is_negative==1 {
-            let tmp = -1*arr[second as usize];
+        add_formula(graph, first, second, 0, 0, formula_array);
+        recalculate(graph, c, arr, first, formula_array);
+    } else {
+        // second is a cell reference
+        if is_negative == 1 {
+            let tmp = -1 * arr[second as usize];
             arr[first as usize] = tmp;
             graph.adj[second as usize] = Some(add_edge(first, graph.adj[second as usize].take()));
-            add_formula(graph, first, second, -1, 3,formula_array);
-            recalculate(graph,c,arr,first,formula_array);
-        }
-        else{
+            add_formula(graph, first, second, -1, 3, formula_array);
+            recalculate(graph, c, arr, first, formula_array);
+        } else {
             println!("heyu");
             let tmp = arr[second as usize];
             arr[first as usize] = tmp;
@@ -124,8 +177,10 @@ pub fn value_func(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &m
             recalculate(graph, c, arr, first, formula_array);
         }
     }
+
+    // If something triggered `HAS` to revert changes
     unsafe {
-        if unsafe{HAS!=0} {
+        if HAS != 0 {
             arr[first as usize] = OLD_VALUE;
             delete_edge(graph, first, c, formula_array);
 
@@ -138,177 +193,186 @@ pub fn value_func(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &m
     }
 }
 
-fn arth_op(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let mut res=0;
-    let mut notvalid=0;
+/// Handle arithmetic expressions like "A1 = 5+10", "B2 = C1 + D3", etc.
+fn arth_op(
+    formula: &str,
+    c: i32,
+    r: i32,
+    pos_equal: i32,
+    pos_end: i32,
+    arr: &mut [i32],
+    graph: &mut Graph,
+    formula_array: &mut [Formula]
+) {
+    let mut res = 0;
+    let mut notvalid = 0;
     let mut op: Option<char> = None;
-    let mut opind=-1;
-    let mut pt=pos_equal+1;
-    for ch in a[(pos_equal+1) as usize..].chars() {
-        println!("ch={} {}",ch,pt);
-        if ch=='+'|| ch=='-' || ch=='*' || ch=='/' {
+    let mut opind = -1;
+    let mut pt = pos_equal + 1;
+
+    // Find the first operator (+, -, *, /)
+    for ch in formula[(pos_equal + 1) as usize..].chars() {
+        println!("ch={} {}", ch, pt);
+        if ch == '+' || ch == '-' || ch == '*' || ch == '/' {
             op = Some(ch);
             opind = pt;
             break;
         }
-        pt+=1;
-        println!("{}",opind);
+        pt += 1;
+        println!("{}", opind);
     }
-    if opind==-1 {
-        println!("Invalid Sinput");
+
+    if opind == -1 {
+        println!("Invalid input");
         return;
     }
+
+    // We'll parse the left operand
     let mut is1cell = 0;
     let mut is1num = 0;
     let mut sign1 = 1;
-    let mut cell1=String::new();
-    let mut num1=String::new();
+    let mut cell1 = String::new();
+    let mut num1 = String::new();
     let mut l1 = 0;
 
     let mut start_pos = pos_equal + 1;
-    let ch=a.chars().nth(start_pos as usize).unwrap();
-    if ch == '-' {
+    let first_ch = formula.chars().nth(start_pos as usize).unwrap();
+    if first_ch == '-' {
         sign1 = -1;
-        start_pos+=1;
+        start_pos += 1;
+    } else if first_ch == '+' {
+        start_pos += 1;
     }
-    else if ch == '+' {
-        start_pos+=1;
-    }
-    for ch in a[start_pos as usize..opind as usize].chars() {
+
+    for ch in formula[start_pos as usize..opind as usize].chars() {
         if !is_digit(ch) && !is_alpha(ch) {
             notvalid = 1;
             break;
-        }
-        else if is1num!=0 && is_alpha(ch) {
+        } else if is1num != 0 && is_alpha(ch) {
             notvalid = 1;
             break;
-        }
-        else if is1cell!=0 {
+        } else if is1cell != 0 {
             cell1.push(ch);
-            l1+=1;
-        }
-        else if is1num!=0 {
+            l1 += 1;
+        } else if is1num != 0 {
             num1.push(ch);
-            l1+=1;
-        }
-        else if is_alpha(ch) {
+            l1 += 1;
+        } else if is_alpha(ch) {
             is1cell = 1;
             cell1.push(ch);
-            l1+=1;
-        }
-        else if is_digit(ch) {
+            l1 += 1;
+        } else if is_digit(ch) {
             is1num = 1;
             num1.push(ch);
-            l1+=1;
+            l1 += 1;
         }
     }
-    println!("{}dd",cell1);
-    if is1cell!=0 {
-        let mut ii=0;
+
+    if is1cell != 0 {
         let mut dfound = 0;
-        while cell1.chars().nth(ii).is_some() {
-            if is_digit(cell1.chars().nth(ii).unwrap()) && dfound==0 {
+        for cch in cell1.chars() {
+            if is_digit(cch) && dfound == 0 {
                 dfound = 1;
-            }
-            else if !is_digit(cell1.chars().nth(ii).unwrap()) && dfound==1 {
+            } else if !is_digit(cch) && dfound == 1 {
                 notvalid = 1;
             }
-            ii+=1;
         }
     }
+
+    // Parse the right operand
     let mut is2cell = 0;
     let mut is2num = 0;
     let mut sign2 = 1;
-    let mut cell2=String::new();
-    let mut num2=String::new();
+    let mut cell2 = String::new();
+    let mut num2 = String::new();
     let mut l2 = 0;
 
     let mut second_start = opind + 1;
-    let ch=a.chars().nth(second_start as usize).unwrap();
-    if ch == '-' {
+    let second_ch = formula.chars().nth(second_start as usize).unwrap();
+    if second_ch == '-' {
         sign2 = -1;
-        second_start+=1;
+        second_start += 1;
+    } else if second_ch == '+' {
+        second_start += 1;
     }
-    else if ch == '+' {
-        second_start+=1;
-    }
-    for ch in a[second_start as usize..].chars() {
+
+    for ch in formula[second_start as usize..].chars() {
         if !is_digit(ch) && !is_alpha(ch) {
             notvalid = 1;
             break;
-        }
-        else if is2num!=0 && is_alpha(ch) {
+        } else if is2num != 0 && is_alpha(ch) {
             notvalid = 1;
             break;
-        }
-        else if is2cell!=0 {
+        } else if is2cell != 0 {
             cell2.push(ch);
-            l2+=1;
-        }
-        else if is2num!=0 {
+            l2 += 1;
+        } else if is2num != 0 {
             num2.push(ch);
-            l2+=1;
-        }
-        else if is_alpha(ch) {
+            l2 += 1;
+        } else if is_alpha(ch) {
             is2cell = 1;
             cell2.push(ch);
-            l2+=1;
-        }
-        else if is_digit(ch) {
+            l2 += 1;
+        } else if is_digit(ch) {
             is2num = 1;
             num2.push(ch);
-            l2+=1;
+            l2 += 1;
         }
     }
 
-    if is2cell!=0 {
+    if is2cell != 0 {
         let mut ddfound = 0;
-        for ch in cell2.chars() {
-            if is_digit(ch) && ddfound==0 {
+        for cc in cell2.chars() {
+            if is_digit(cc) && ddfound == 0 {
                 ddfound = 1;
-            }
-            else if !is_digit(ch) && ddfound==1 {
+            } else if !is_digit(cc) && ddfound == 1 {
                 notvalid = 1;
             }
         }
     }
 
-    if notvalid==1 || (is1cell==0 && is1num==0) || (is2cell==0 && is2num==0) {
+    if notvalid == 1 || (is1cell == 0 && is1num == 0) || (is2cell == 0 && is2num == 0) {
         println!("Invalid command\n");
         return;
     }
-    let mut second_cell=-1;
-    if is1cell!=0 {
-        println!("{} g",l1);
+
+    // Evaluate left operand => second_cell
+    let mut second_cell = -1;
+    if is1cell != 0 {
         second_cell = cell_parser(&cell1, c, r, 0, l1 - 2, graph);
         if second_cell == -1 {
-            println!("Invalid cell Areference\n");
+            println!("Invalid cell reference A\n");
             return;
         }
-    }
-    else {
-        println!("second_cell={}",num1);
+        second_cell = sign1 * second_cell;
+    } else {
         second_cell = num1.parse::<i32>().unwrap() * sign1;
     }
-    let mut third_cell=-1;
-    if is2cell!=0 {
+
+    // Evaluate right operand => third_cell
+    let mut third_cell = -1;
+    if is2cell != 0 {
         third_cell = cell_parser(&cell2, c, r, 0, (l2 - 2) as i32, graph);
         if third_cell == -1 {
-            println!("Invalid cell Breference\n");
+            println!("Invalid cell reference B\n");
             return;
         }
-    }
-    else {
+        third_cell = sign2 * third_cell;
+    } else {
         third_cell = num2.parse::<i32>().unwrap() * sign2;
     }
-    let ref_sub=&a[..pos_equal as usize];
-    println!("ref_sub={}",ref_sub);
+
+    // Evaluate the cell on the left side of "="
+    let ref_sub = &formula[..pos_equal as usize];
+    println!("ref_sub={}", ref_sub);
     let first_cell = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
     if first_cell == -1 {
-        println!("Invalid cell Creference\n");
+        println!("Invalid cell reference C\n");
         return;
     }
-    println!("{} {} {}",first_cell,second_cell,third_cell);
+
+    println!("{} {} {}", first_cell, second_cell, third_cell);
+
     unsafe {
         OLD_VALUE = arr[first_cell as usize];
         OLD_OP_TYPE = formula_array[first_cell as usize].op_type;
@@ -316,39 +380,51 @@ fn arth_op(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &mut [i32
         OLD_P2 = formula_array[first_cell as usize].p2;
     }
 
+    // If the left cell already had a formula, remove it
     if formula_array[first_cell as usize].op_type > 0 {
         delete_edge(graph, first_cell, c, formula_array);
     }
 
-    if is1cell==0 && is2cell==0 {
-        res = arith(second_cell, third_cell, Some(op).expect("Invalid Ainput"));
+    // Now handle various combos:
+    if is1cell == 0 && is2cell == 0 {
+        // both sides are numeric
+        res = arith(second_cell, third_cell, op);
         arr[first_cell as usize] = res;
-        add_formula(graph, first_cell, res, 0, 0,formula_array);
-    }
-    else if is1cell==1 && is2cell==0 {
-        res = arith(arr[second_cell as usize], third_cell, Some(op).expect("Invalid Binput"));
-        arr[first_cell as usize] = res;
-        graph.adj[second_cell as usize] = Some(add_edge(first_cell, graph.adj[second_cell as usize].take()));
-        add_formula(graph, first_cell, second_cell, third_cell, return_optype(op),formula_array);
-    }
-    else if is1cell==0 && is2cell==1 {
-        res = arith(second_cell, arr[third_cell as usize], Some(op).expect("Invalid Dinput"));
-        arr[first_cell as usize] = res;
-        graph.adj[third_cell as usize] = Some(add_edge(first_cell, graph.adj[third_cell as usize].take()));
-        add_formula(graph, first_cell, third_cell, second_cell, return_optype(op),formula_array);
-    }
-    else {
-        println!("{} UH",second_cell);
-        res = arith(arr[second_cell as usize], arr[third_cell as usize], Some(op).expect("Invalid TRWERWEinput"));
+        add_formula(graph, first_cell, res, 0, 0, formula_array);
+    } else if is1cell == 1 && is2cell == 0 {
+        // left operand is a cell, right is numeric
+        let val_left = arr[second_cell as usize];
+        res = arith(val_left, third_cell, op);
         arr[first_cell as usize] = res;
         graph.adj[second_cell as usize] = Some(add_edge(first_cell, graph.adj[second_cell as usize].take()));
+        add_formula(graph, first_cell, second_cell, third_cell, return_optype(op), formula_array);
+    } else if is1cell == 0 && is2cell == 1 {
+        // left operand is numeric, right is a cell
+        let val_right = arr[third_cell as usize];
+        res = arith(second_cell, val_right, op);
+        arr[first_cell as usize] = res;
         graph.adj[third_cell as usize] = Some(add_edge(first_cell, graph.adj[third_cell as usize].take()));
-        add_formula(graph, first_cell, second_cell, third_cell, return_optype(op),formula_array);
-        add_formula(graph, first_cell, second_cell, third_cell, return_optype(op) + 4,formula_array);
+        add_formula(graph, first_cell, third_cell, second_cell, return_optype(op), formula_array);
+    } else {
+        // both are cell references
+        println!("{} UH", second_cell);
+        let val_left = arr[second_cell as usize];
+        let val_right = arr[third_cell as usize];
+        res = arith(val_left, val_right, op);
+        arr[first_cell as usize] = res;
+        graph.adj[second_cell as usize] = Some(add_edge(first_cell, graph.adj[second_cell as usize].take()));
+        graph.adj[third_cell as usize] = Some(add_edge(first_cell, graph.adj[third_cell as usize].take()));
+        add_formula(graph, first_cell, second_cell, third_cell, return_optype(op), formula_array);
+        // Possibly storing a second formula? (Your code does "optype + 4")
+        add_formula(graph, first_cell, second_cell, third_cell, return_optype(op) + 4, formula_array);
     }
-    recalculate(graph, c, arr, first_cell,formula_array);
+
+    // Recalculate downstream dependencies
+    recalculate(graph, c, arr, first_cell, formula_array);
+
+    // If a revert was triggered
     unsafe {
-        if unsafe {HAS==1} {
+        if HAS == 1 {
             arr[first_cell as usize] = OLD_VALUE;
             delete_edge(graph, first_cell, c, formula_array);
 
@@ -361,13 +437,25 @@ fn arth_op(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &mut [i32
     }
 }
 
-fn funct(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let ref_sub=&a[..pos_equal as usize];
-    let first=cell_parser(ref_sub,c,r,0,pos_equal-1,graph);
+/// Handle functions like SUM, AVG, MIN, MAX, STDEV, SLEEP.
+fn funct(
+    formula: &str,
+    c: i32,
+    r: i32,
+    pos_equal: i32,
+    pos_end: i32,
+    arr: &mut [i32],
+    graph: &mut Graph,
+    formula_array: &mut [Formula]
+) {
+    let ref_sub = &formula[..pos_equal as usize];
+    let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
+
     if first == -1 {
         println!("Invalid cellM");
         return;
     }
+
     unsafe {
         OLD_VALUE = arr[first as usize];
         OLD_OP_TYPE = formula_array[first as usize].op_type;
@@ -376,10 +464,11 @@ fn funct(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &mut [i32],
     }
 
     if formula_array[first as usize].op_type > 0 {
-        delete_edge(graph, first, c,formula_array);
+        delete_edge(graph, first, c, formula_array);
     }
-    let open_paren1 = a[pos_equal as usize..].find('(');
-    let close_paren1 = a[pos_equal as usize..].find(')');
+
+    let open_paren1 = formula[pos_equal as usize..].find('(');
+    let close_paren1 = formula[pos_equal as usize..].find(')');
 
     if let (Some(open), Some(close)) = (open_paren1, close_paren1) {
         if close <= open + 1 {
@@ -387,120 +476,175 @@ fn funct(a: &str, c: i32, r: i32, pos_equal: i32, pos_end: i32, arr: &mut [i32],
             return;
         }
 
-        let open_idx = pos_equal + <usize as TryInto<i32>>::try_into(open).unwrap();
-        let close_idx: i32 = pos_equal + <usize as TryInto<i32>>::try_into(close).unwrap();
-        let inside: &str = &a[(open_idx + 1) as usize..close_idx as usize];
+        let open_idx = pos_equal + open as i32;
+        let close_idx = pos_equal + close as i32;
+        let inside: &str = &formula[(open_idx + 1) as usize..close_idx as usize];
         println!("Inside parentheses: {}", inside);
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
     }
-    let idx_open = pos_equal + <usize as TryInto<i32>>::try_into(open_paren1.unwrap()).unwrap();
+
+    let idx_open = pos_equal + open_paren1.unwrap() as i32;
     if idx_open - pos_equal >= 3 {
+        // e.g., = STDEV(...) => 5 chars
         if idx_open - pos_equal - 1 == 5 {
-            if a[(pos_equal + 1) as usize..].starts_with("STDEV") {
-                standard_dev_func(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph,formula_array);
-                recalculate(graph, c, arr, first,formula_array);
-            }
-            else if a[(pos_equal + 1) as usize..].starts_with("SLEEP") {
-                sleep_func(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph,formula_array);
-                recalculate(graph, c, arr, first,formula_array);
+            if formula[(pos_equal + 1) as usize..].starts_with("STDEV") {
+                standard_dev_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                recalculate(graph, c, arr, first, formula_array);
+            } else if formula[(pos_equal + 1) as usize..].starts_with("SLEEP") {
+                sleep_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                recalculate(graph, c, arr, first, formula_array);
             }
         }
+        // e.g., = MIN(...) => 3 chars
         else if idx_open - pos_equal - 1 == 3 {
-            if a[(pos_equal + 1) as usize..].starts_with("MIN") {
-                min_func(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph, formula_array);
+            if formula[(pos_equal + 1) as usize..].starts_with("MIN") {
+                min_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
                 recalculate(graph, c, arr, first, formula_array);
-            }
-            else if a[(pos_equal + 1) as usize..].starts_with("MAX") {
-                max_func(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph,formula_array);
-                recalculate(graph, c, arr, first,formula_array);
-            }
-            else if a[(pos_equal + 1) as usize..].starts_with("AVG") {
-                avg_func(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph,formula_array);
+            } else if formula[(pos_equal + 1) as usize..].starts_with("MAX") {
+                max_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
                 recalculate(graph, c, arr, first, formula_array);
+            } else if formula[(pos_equal + 1) as usize..].starts_with("AVG") {
+                avg_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                recalculate(graph, c, arr, first, formula_array);
+            } else if formula[(pos_equal + 1) as usize..].starts_with("SUM") {
+                sum_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                recalculate(graph, c, arr, first, formula_array);
+            } else {
+                println!("Invalid function\n");
             }
-            else if a[(pos_equal + 1) as usize..].starts_with("SUM") {
-                sum_func(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph,formula_array);
-                recalculate(graph, c, arr, first,formula_array);
-            }
-        }
-        else {
+        } else {
             println!("Invalid function\n");
         }
-    }
-    else {
+    } else {
         println!("Invalid function\n");
     }
+
+    // If something triggers revert:
     unsafe {
-        if unsafe{HAS!=0} {
+        if HAS != 0 {
             arr[first as usize] = OLD_VALUE;
             delete_edge(graph, first, c, formula_array);
+
             formula_array[first as usize].op_type = OLD_OP_TYPE;
             formula_array[first as usize].p1 = OLD_P1;
             formula_array[first as usize].p2 = OLD_P2;
+
             add_edge_formula(graph, first, c, formula_array);
         }
     }
 }
 
-pub fn parser(a: &str, c: i32, r: i32, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) -> i32 {
-    let x=a.chars().nth(0).unwrap();
-    println!("{}",a);
-    if x == 'w' || x == 'd' || x == 'a' || x == 's' {
+/// **Main parser** — called from your WASM code with `parser(&mut s, formula)`.
+/// 
+/// Determines what kind of expression it is (simple value, arithmetic, function), 
+/// then calls the appropriate function.
+pub fn parser(spreadsheet: &mut Spreadsheet, formula: &str) -> i32 {
+    println!("{}", formula);
 
+    // If formula starts with w/a/s/d, maybe it's a movement or something?
+    let first_char = formula.chars().next().unwrap();
+    if ['w', 'a', 's', 'd'].contains(&first_char) {
+        // Possibly handle movement here if needed.
+        // ...
     }
+
+    // Extract references from spreadsheet
+    let c = spreadsheet.cols as i32;
+    let r = spreadsheet.rows as i32;
+    let arr = &mut spreadsheet.arr;
+    let graph = &mut spreadsheet.graph;
+    let formula_array = &mut spreadsheet.formula_array;
+
+    // Find '=' in the formula
     let mut pos_equal = 1000;
     let mut pos_end = 1000;
-    let mut pt=0;
-    for i in a.chars() {
-        if i=='=' && pos_equal==1000 {
-            pos_equal=pt;
+    let mut pt = 0;
+
+    // We search for '='
+    for ch in formula.chars() {
+        if ch == '=' && pos_equal == 1000 {
+            pos_equal = pt;
         }
-        pos_end+=1;
-        pt+=1;
+        pos_end += 1;
+        pt += 1;
     }
+
     if pos_equal == 1000 {
+        // No '=' means not a formula
         return -1;
     }
+
+    // Heuristics to identify if it's a direct value, arithmetic, or function call
     let mut value = 0;
     let mut arth_exp = 0;
     let mut func = 0;
     let mut found_digit = 0;
-    for ch in a[(pos_equal+1) as usize..].chars() {
-        if ch=='(' {
-            func=1;
+
+    for ch in formula[(pos_equal + 1) as usize..].chars() {
+        if ch == '(' {
+            func = 1;
             break;
         }
         if is_digit(ch) {
-            println!("hi");
-            found_digit=1;
+            // Once we see a digit, if we see an operator after that, it's arithmetic
+            found_digit = 1;
         }
-        if (ch == '+' || ch == '-' || ch == '*' || ch == '/') && (found_digit == 1) {
+        if (ch == '+' || ch == '-' || ch == '*' || ch == '/') && found_digit == 1 {
             arth_exp = 1;
             break;
         }
     }
+
     if func == 1 && arth_exp == 1 {
-        println!("Invalid Cinput");
+        println!("Invalid input: can't be both function and arithmetic\n");
         return -1;
     }
     if func == 0 && arth_exp == 0 {
-        value = 1;
+        value = 1; // It's a simple value (like "A1=123" or "A1=B2")
     }
+
+    // Dispatch
     if value == 1 {
-        value_func(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph, formula_array);
+        value_func(
+            formula,
+            c,
+            r,
+            pos_equal,
+            pos_end,
+            arr,
+            graph,
+            formula_array,
+        );
+    } else if arth_exp == 1 {
+        arth_op(
+            formula,
+            c,
+            r,
+            pos_equal,
+            pos_end,
+            arr,
+            graph,
+            formula_array,
+        );
+    } else if func == 1 {
+        funct(
+            formula,
+            c,
+            r,
+            pos_equal,
+            pos_end,
+            arr,
+            graph,
+            formula_array,
+        );
     }
-    else if arth_exp == 1 {
-        arth_op(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph,formula_array);
-    }
-    else if func == 1 {
-        funct(a, c, r, pos_equal.try_into().unwrap(), pos_end.try_into().unwrap(), arr, graph,formula_array);
-    }
-    if value == 1 || func == 1 || arth_exp == 1 {
+
+    // Return 1 if we recognized something, else 0
+    if value == 1 || arth_exp == 1 || func == 1 {
         1
-    }
-    else {
+    } else {
         0
     }
 }
