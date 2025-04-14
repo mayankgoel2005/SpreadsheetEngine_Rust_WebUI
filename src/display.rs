@@ -124,9 +124,6 @@ fn column_index_to_name(mut col: usize) -> String {
     }
     name
 }
-
-/// Render the spreadsheet as an HTML table with editable cells.
-/// Each cell is rendered as an <input> element that carries a data attribute for its label.
 pub fn render_spreadsheet(
     curr_x: usize,
     curr_y: usize,
@@ -136,53 +133,54 @@ pub fn render_spreadsheet(
 ) -> String {
     let mut output = String::new();
 
-    // Begin table (you can adjust styles as needed)
-    output.push_str(r#"<table border="1" style="border-collapse:collapse; width: 100%;">"#);
+    // Wrap the table inside a scrollable div with fixed width and height
+    output.push_str(r#"
+        <div id="scroll-container" 
+             style="max-width: 1020px; max-height: 600px; overflow: auto; border: 1px solid #ccc;">
+    "#);
 
-    // Compute visible columns and rows (here we display at most 10 of each)
-    let num_cols = std::cmp::min(cols.saturating_sub(curr_x), 100);
-    let num_rows = std::cmp::min(rows.saturating_sub(curr_y), 100);
+    // Start the table
+    output.push_str(r#"<table border="1" style="border-collapse:collapse;">"#);
 
-    // Build column header row.
-    output.push_str("<tr><th></th>");
-    for i in 0..num_cols {
-        let col_name = column_index_to_name(curr_x + i);
+    // Render column headers (top row)
+    output.push_str("<tr><th></th>");  // Top-left empty corner
+    
+    for col in 0..cols {
+        let col_name = column_index_to_name(col);
         output.push_str(&format!(r#"<th style="padding: 5px;">{}</th>"#, col_name));
     }
     output.push_str("</tr>");
 
-    // Build each row.
-    for j in 0..num_rows {
-        let row_num = curr_y + j + 1; // display rows as 1-indexed
+    // Render each row
+    for row in 0..rows {
+        let row_num = row + 1; // Display as 1-indexed
         output.push_str(&format!(r#"<tr><th style="padding: 5px;">{}</th>"#, row_num));
-        for i in 0..num_cols {
-            let col_index = curr_x + i;
-            let cell_label = format!("{}{}", column_index_to_name(col_index), row_num);
-            let index = (curr_y + j) * cols + col_index;
-            // Use "ERR" as the display if the value is std::i32::MIN, otherwise the actual value.
-            let cell_display = if arr[index] == std::i32::MIN {
-                "ERR".to_owned()
+        for col in 0..cols {
+            let index = row * cols + col;
+            let cell_label = format!("{}{}", column_index_to_name(col), row_num);
+            let cell_value = if arr[index] == std::i32::MIN {
+                "ERR".to_string()
             } else {
                 arr[index].to_string()
             };
 
-            // Each cell is an input element.
-            // We attach event handlers (onblur, onkeyup) that we will define in JS.
             output.push_str(&format!(
                 r#"<td style="padding: 5px;">
                     <input type="text"
                            data-cell="{}"
                            value="{}"
-                           style="width: 100%; border: none; text-align: center;"
+                           style="width: 100px; border: none; text-align: center;"
                            onblur="handleCellBlur(event)"
                            onkeyup="handleCellKeyup(event)" />
                    </td>"#,
-                cell_label, cell_display
+                cell_label, cell_value
             ));
         }
         output.push_str("</tr>");
     }
 
     output.push_str("</table>");
+    output.push_str("</div>"); // Close scroll container
+
     output
 }
