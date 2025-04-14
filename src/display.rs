@@ -110,47 +110,79 @@ pub fn scroller_display(
         // On an invalid scroll, do nothing.
     }
 }
-pub fn render_spreadsheet(curr_x: usize, curry: usize, arr: &[i32], cols: usize, rows: usize) -> String {
+// In src/display.rs
+
+/// Convert a zero-indexed column number to a spreadsheet column name (0 -> A, 1 -> B, 26 -> AA, etc.)
+fn column_index_to_name(mut col: usize) -> String {
+    let mut name = String::new();
+    loop {
+        name.insert(0, (b'A' + (col % 26) as u8) as char);
+        if col < 26 {
+            break;
+        }
+        col = (col / 26) - 1;
+    }
+    name
+}
+
+/// Render the spreadsheet as an HTML table with editable cells.
+/// Each cell is rendered as an <input> element that carries a data attribute for its label.
+pub fn render_spreadsheet(
+    curr_x: usize,
+    curr_y: usize,
+    arr: &[i32],
+    cols: usize,
+    rows: usize,
+) -> String {
     let mut output = String::new();
-    
-    // Add a debug prefix so you can see something in the console output.
-    output.push_str("DEBUG: Rendering Spreadsheet\n\n");
 
-    // If your code is in any way returning early, or is empty, you won’t see anything.
-    // Make sure you have logic like this:
+    // Begin table (you can adjust styles as needed)
+    output.push_str(r#"<table border="1" style="border-collapse:collapse; width: 100%;">"#);
+
+    // Compute visible columns and rows (here we display at most 10 of each)
     let num_cols = std::cmp::min(cols.saturating_sub(curr_x), 10);
-    let num_rows = std::cmp::min(rows.saturating_sub(curry), 10);
+    let num_rows = std::cmp::min(rows.saturating_sub(curr_y), 10);
 
-    // Build column headers
-    output.push_str("      ");
+    // Build column header row.
+    output.push_str("<tr><th></th>");
     for i in 0..num_cols {
-        let mut val = (curr_x + i + 1) as i32; // 1-indexed
-        let mut col_str = String::new();
-        while val > 0 {
-            val -= 1;
-            let letter = ((val % 26) as u8 + b'A') as char;
-            col_str.push(letter);
-            val /= 26;
-        }
-        let header: String = col_str.chars().rev().collect();
-        output.push_str(&format!("{:<10}", header));
+        let col_name = column_index_to_name(curr_x + i);
+        output.push_str(&format!(r#"<th style="padding: 5px;">{}</th>"#, col_name));
     }
-    output.push('\n');
+    output.push_str("</tr>");
 
-    // Build row lines
+    // Build each row.
     for j in 0..num_rows {
-        output.push_str(&format!("{:<3}   ", curry + j + 1));
+        let row_num = curr_y + j + 1; // display rows as 1-indexed
+        output.push_str(&format!(r#"<tr><th style="padding: 5px;">{}</th>"#, row_num));
         for i in 0..num_cols {
-            let index = (curry + j) * cols + (curr_x + i);
-            let value = arr[index];
-            if value == std::i32::MIN {
-                output.push_str(&format!("{:<10}", "ERR"));
+            let col_index = curr_x + i;
+            let cell_label = format!("{}{}", column_index_to_name(col_index), row_num);
+            let index = (curr_y + j) * cols + col_index;
+            // Use "ERR" as the display if the value is std::i32::MIN, otherwise the actual value.
+            let cell_display = if arr[index] == std::i32::MIN {
+                "ERR".to_owned()
             } else {
-                output.push_str(&format!("{:<10}", value));
-            }
+                arr[index].to_string()
+            };
+
+            // Each cell is an input element.
+            // We attach event handlers (onblur, onkeyup) that we will define in JS.
+            output.push_str(&format!(
+                r#"<td style="padding: 5px;">
+                    <input type="text"
+                           data-cell="{}"
+                           value="{}"
+                           style="width: 100%; border: none; text-align: center;"
+                           onblur="handleCellBlur(event)"
+                           onkeyup="handleCellKeyup(event)" />
+                   </td>"#,
+                cell_label, cell_display
+            ));
         }
-        output.push('\n');
+        output.push_str("</tr>");
     }
 
+    output.push_str("</table>");
     output
 }

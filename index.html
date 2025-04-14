@@ -1,83 +1,108 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Real-Time Spreadsheet</title>
-    <!-- Link to your WASM library -->
-    <link data-trunk rel="rust" data-target-name="lab1_2023CS10204_2023CS10076_2023CS10186" />
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-      }
-      #spreadsheet-container {
-        margin: 20px;
-        padding: 10px;
-        border: 1px solid #ccc;
-        background: #f9f9f9;
-        font-family: monospace;
-        white-space: pre;  /* this preserves newlines and spacing */
-        min-height: 300px;
-      }
-      #formula-container {
-        margin: 20px;
-      }
-      input[type="text"] {
-        width: 80%;
-        padding: 8px;
-        font-size: 16px;
-      }
-      label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Real-Time Spreadsheet</h1>
-    
-    <!-- Container to display the spreadsheet -->
-    <div id="spreadsheet-container"></div>
-    
-    <!-- Formula input box -->
-    <div id="formula-container">
-      <label for="formula-input">Enter formula:</label>
-      <input type="text" id="formula-input" placeholder="E.g., A1=42 or A1=B2+5" />
-    </div>
-    
-    <script type="module">
-      // Import from your WASM glue code (make sure the path/name matches exactly)
-      import init, { render_initial_spreadsheet, update_formula } from "./lab1_2023CS10204_2023CS10076_2023CS10186.js";
-      
-      async function runApp() {
-        try {
-          await init();
-          
-          const spreadsheetContainer = document.getElementById("spreadsheet-container");
-          const formulaInput = document.getElementById("formula-input");
-          
-          // Render the initial spreadsheet and log it
-          const initialHTML = render_initial_spreadsheet();
-          console.log("Initial spreadsheet HTML:", initialHTML);
-          spreadsheetContainer.innerHTML = initialHTML;
-          
-          // Listen for keystrokes to update the spreadsheet.
-          formulaInput.addEventListener("keyup", async () => {
-            const formula = formulaInput.value.trim();
-            if (formula !== "") {
-              const updatedHTML = await update_formula(formula);
-              console.log(`For formula "${formula}", updated HTML:\n`, updatedHTML);
-              spreadsheetContainer.innerHTML = updatedHTML;
-            } else {
-              spreadsheetContainer.innerHTML = render_initial_spreadsheet();
-            }
-          });
-        } catch (error) {
-          console.error("Error initializing or updating the spreadsheet:", error);
+<head>
+  <meta charset="utf-8" />
+  <title>Real-Time Spreadsheet</title>
+  <!-- Tell Trunk to build your WASM library -->
+  <link data-trunk rel="rust" data-target-name="lab1_2023CS10204_2023CS10076_2023CS10186" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    #spreadsheet-container {
+      margin: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+    #formula-container {
+      margin: 20px;
+    }
+    input[type="text"] {
+      font-size: 16px;
+    }
+    /* Style for table cells */
+    table {
+      width: 100%;
+    }
+    th, td {
+      padding: 5px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<h1>Real-Time Spreadsheet</h1>
+
+<!-- Container for the spreadsheet -->
+<div id="spreadsheet-container"></div>
+
+<!-- Formula input box -->
+<div id="formula-container">
+  <label for="formula-input">Enter formula:</label>
+  <input type="text" id="formula-input" placeholder="E.g., A1=42 or A1=B2+5" />
+</div>
+
+<!-- Import the WASM glue code using its full generated filename -->
+<script type="module">
+  // Change the following file name to match the one in your dist folder
+  import init, { render_initial_spreadsheet, update_formula }
+    from "./lab1_2023CS10204_2023CS10076_2023CS10186.js";
+
+  async function runApp() {
+    try {
+      await init();
+
+      const spreadsheetContainer = document.getElementById("spreadsheet-container");
+      const formulaInput = document.getElementById("formula-input");
+
+      // Render and display the initial spreadsheet
+      let html = render_initial_spreadsheet();
+      console.log("Initial spreadsheet HTML:", html);
+      spreadsheetContainer.innerHTML = html;
+
+      // Listen for keydown events in the formula input.
+      formulaInput.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter") {
+          const formula = formulaInput.value.trim();
+          if (formula !== "") {
+            const updatedHTML = await update_formula(formula);
+            console.log(`Updated HTML for formula "${formula}":`, updatedHTML);
+            spreadsheetContainer.innerHTML = updatedHTML;
+          }
         }
-      }
-      
-      runApp();
-    </script>
-  </body>
+      });
+    } catch (error) {
+      console.error("Error initializing or updating the spreadsheet:", error);
+    }
+  }
+
+  // Event handler for when a cell loses focus
+  window.handleCellBlur = async (event) => {
+    const inputEl = event.target;
+    const cellId = inputEl.getAttribute("data-cell"); // e.g. "A1"
+    const newValue = inputEl.value.trim();
+
+    // Form a formula like "A1=...". Optionally, you can further process newValue.
+    const formula = `${cellId}=${newValue}`;
+    console.log("Cell blur, updating with formula:", formula);
+    try {
+      const updatedHTML = await update_formula(formula);
+      document.getElementById("spreadsheet-container").innerHTML = updatedHTML;
+    } catch (err) {
+      console.error("Error updating formula on cell blur:", err);
+    }
+  };
+
+  // Event handler for keyup in a cell.
+  // If Enter is pressed while editing a cell, process the update.
+  window.handleCellKeyup = async (event) => {
+    if (event.key === "Enter") {
+      event.target.blur();  // Remove focus to trigger onblur handler
+    }
+  };
+
+  runApp();
+</script>
+</body>
 </html>
