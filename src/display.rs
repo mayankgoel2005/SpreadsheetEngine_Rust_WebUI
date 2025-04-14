@@ -140,8 +140,8 @@ pub fn render_spreadsheet(
     output.push_str(r#"<table border="1" style="border-collapse:collapse; width: 100%;">"#);
 
     // Compute visible columns and rows (here we display at most 10 of each)
-    let num_cols = std::cmp::min(cols.saturating_sub(curr_x), 10);
-    let num_rows = std::cmp::min(rows.saturating_sub(curr_y), 10);
+    let num_cols = std::cmp::min(cols.saturating_sub(curr_x), 100);
+    let num_rows = std::cmp::min(rows.saturating_sub(curr_y), 100);
 
     // Build column header row.
     output.push_str("<tr><th></th>");
