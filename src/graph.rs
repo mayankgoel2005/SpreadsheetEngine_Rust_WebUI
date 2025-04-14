@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::input_parser::HAS;
 const INT_MIN: i32 = i32::MIN;
 const INT_MAX: i32 = i32::MAX;
-const CELLS: usize = 1000;
+const CELLS: usize = 18278000;
 
 #[derive(Debug)]
 pub struct QueueNode {
@@ -91,7 +91,6 @@ impl Graph {
 }
 
 pub fn add_formula(_graph: &mut Graph, cell: i32, p1: i32, p2: i32, op_type: i32, formula_list: &mut [Formula]) {
-    println!("{}",cell);
     let f = if op_type == 0 {
         Formula {
             op_type,
@@ -360,41 +359,48 @@ pub fn arith(v1: i32, v2: i32, op: Option<char>) -> i32 {
     }
 }
 
-pub fn recalculate(graph: &mut Graph, cols: i32, arr: &mut [i32], start_cell: i32, formula_array: &[Formula]) {
+pub fn recalculate(
+    graph: &mut Graph,
+    cols: i32,
+    arr: &mut [i32],
+    start_cell: i32,
+    formula_array: &[Formula]
+) -> bool {
+    // Attempt a topological sort starting at `start_cell`
     let mut size = 0;
     let mut has_cycle = 0;
-    println!("{}",start_cell);
     let sorted_cells = match topological_sort(graph, start_cell, &mut size, &mut has_cycle) {
         Some(v) => v,
         None => {
             println!("Error: Circular dependency detected. Command rejected.");
-            return;
+            return false;
         }
     };
 
-    // Reset dependent cells to 0.
+    // Clone the current cell values to simulate updates.
+    let mut new_arr = arr.to_vec();
+
+    // Reset dependent cells in the clone.
     for &cell in &sorted_cells {
-        arr[cell as usize] = 0;
+        new_arr[cell as usize] = 0;
     }
 
+    // Iterate over the cells in topologically sorted order.
     for &cell in &sorted_cells {
-        println!("{}",cell);
         let f = formula_array[cell as usize];
-        println!("{} oh", f.op_type);
         if f.op_type == 0 {
-            if f.p1 == INT_MIN {
-                println!("Error: Cell {} has an invalid constant value (INT_MIN)", cell);
-                arr[cell as usize] = INT_MIN;
+            // Simple constant assignment.
+            if f.p1 == std::i32::MIN {
+                new_arr[cell as usize] = std::i32::MIN;
             } else {
-                arr[cell as usize] = f.p1;
-                println!("{} == {}", cell, f.p1);
+                new_arr[cell as usize] = f.p1;
             }
         } else if (1..=4).contains(&f.op_type) {
-            let v1 = arr[f.p1 as usize];
+            // Arithmetic operation with constant second operand.
+            let v1 = new_arr[f.p1 as usize];
             let v2 = f.p2;
-            if v1 == INT_MIN {
-                println!("Error: Cell {} has invalid operand (v1 is INT_MIN)", f.p1);
-                arr[cell as usize] = INT_MIN;
+            if v1 == std::i32::MIN {
+                new_arr[cell as usize] = std::i32::MIN;
                 continue;
             }
             let op = match f.op_type {
@@ -405,20 +411,20 @@ pub fn recalculate(graph: &mut Graph, cols: i32, arr: &mut [i32], start_cell: i3
                 _ => unreachable!(),
             };
             if op == '/' && v2 == 0 {
-                arr[cell as usize] = INT_MIN;
+                new_arr[cell as usize] = std::i32::MIN;
                 continue;
             }
-            arr[cell as usize] = arith(v1, v2, Some(op));
+            new_arr[cell as usize] = arith(v1, v2, Some(op));
         } else if (5..=8).contains(&f.op_type) {
-            let v1 = arr[f.p1 as usize];
-            let v2 = arr[f.p2 as usize];
+            // Arithmetic operation using two cell references.
+            let v1 = new_arr[f.p1 as usize];
+            let v2 = new_arr[f.p2 as usize];
             if f.op_type == 8 && v2 == 0 {
-                arr[cell as usize] = INT_MIN;
+                new_arr[cell as usize] = std::i32::MIN;
                 continue;
             }
-            if v1 == INT_MIN || v2 == INT_MIN {
-                println!("Error: One of the operands for cell {} is INT_MIN", cell);
-                arr[cell as usize] = INT_MIN;
+            if v1 == std::i32::MIN || v2 == std::i32::MIN {
+                new_arr[cell as usize] = std::i32::MIN;
                 continue;
             }
             let op = match f.op_type {
@@ -428,82 +434,75 @@ pub fn recalculate(graph: &mut Graph, cols: i32, arr: &mut [i32], start_cell: i3
                 8 => '/',
                 _ => unreachable!(),
             };
-            arr[cell as usize] = arith(v1, v2, Some(op));
+            new_arr[cell as usize] = arith(v1, v2, Some(op));
         } else if (9..=13).contains(&f.op_type) {
-            println!("hey");
-            let start_cell = f.p1;
-            let end_cell = f.p2;
-            let start_row = start_cell / cols;
-            let start_col = start_cell % cols;
-            let end_row = end_cell / cols;
-            let end_col = end_cell % cols;
-
-            let mut sum = 0;
+            // Advanced functions: MIN, MAX, AVG, SUM, STDEV.
+            // We assume f.p1 and f.p2 denote the range start and end respectively.
+            let start = f.p1;
+            let end = f.p2;
             let mut count = 0;
-            let mut standard_dev_squared = 0;
-            let mut min_val = INT_MAX;
-            let mut max_val = INT_MIN;
-            let mut has_error = false;
+            let mut sum = 0;
+            let mut min_value = std::i32::MAX;
+            let mut max_value = std::i32::MIN;
+            let mut sd_sum = 0.0;
 
-            for row in start_row..=end_row {
-                for col in start_col..=end_col {
-                    let idx = (row * cols + col) as usize;
-                    let val = arr[idx];
-                    if val == INT_MIN {
-                        has_error = true;
-                        break;
-                    }
-                    sum += val;
-                    count += 1;
-                    if val < min_val {
-                        min_val = val;
-                    }
-                    if val > max_val {
-                        max_val = val;
-                    }
+            // Iterate over the specified range.
+            for idx in start..=end {
+                let val = new_arr[idx as usize];
+                // Skip error cells (or you could choose to propagate error)
+                if val == std::i32::MIN {
+                    continue;
                 }
-                if has_error {
-                    break;
+                count += 1;
+                sum += val;
+                if val < min_value {
+                    min_value = val;
+                }
+                if val > max_value {
+                    max_value = val;
                 }
             }
 
-            if has_error || count == 0 {
-                arr[cell as usize] = INT_MIN;
-                continue;
-            }
-
-            let mean = sum as f64 / count as f64;
-            for row in start_row..=end_row {
-                for col in start_col..=end_col {
-                    let idx = (row * cols + col) as usize;
-                    standard_dev_squared += (arr[idx] as f64 - mean).powi(2) as i32;
-                }
-            }
-
-            arr[cell as usize] = match f.op_type {
-                9 => min_val,
-                10 => max_val,
-                11 => sum / count,
-                12 => sum,
-                13 => (standard_dev_squared as f64 / count as f64).sqrt() as i32,
-                _ => unreachable!(),
-            };
-        } else if f.op_type == 14 {
-            let sleep_value = if f.p1 == cell {
-                f.p2
+            if count == 0 {
+                new_arr[cell as usize] = std::i32::MIN;
             } else {
-                arr[f.p1 as usize]
-            };
-            if sleep_value == INT_MIN {
-                println!("Error: Invalid sleep value in cell {}", cell);
-                arr[cell as usize] = INT_MIN;
-                continue;
-            } else if sleep_value <= 0 {
-                arr[cell as usize] = sleep_value;
+                match f.op_type {
+                    9  => { // MIN
+                        new_arr[cell as usize] = min_value;
+                    }
+                    10 => { // MAX
+                        new_arr[cell as usize] = max_value;
+                    }
+                    11 => { // AVG
+                        new_arr[cell as usize] = sum / count;
+                    }
+                    12 => { // SUM
+                        new_arr[cell as usize] = sum;
+                    }
+                    13 => { // STDEV
+                        let avg = sum as f64 / count as f64;
+                        for idx in start..=end {
+                            let val = new_arr[idx as usize] as f64;
+                            sd_sum += (val - avg).powi(2);
+                        }
+                        let stdev = (sd_sum / count as f64).sqrt();
+                        new_arr[cell as usize] = stdev as i32;
+                    }
+                    _  => { /* unreachable */ }
+                }
+            }
+        } else if f.op_type == 14 {
+            // Sleep function: we simulate sleep by simply returning the sleep value.
+            let sleep_value = if f.p1 == cell { f.p2 } else { new_arr[f.p1 as usize] };
+            if sleep_value == std::i32::MIN || sleep_value <= 0 {
+                new_arr[cell as usize] = sleep_value;
                 continue;
             }
-            thread::sleep(Duration::from_secs(sleep_value as u64));
-            arr[cell as usize] = sleep_value;
+            new_arr[cell as usize] = sleep_value;
         }
     }
+
+    // Commit the simulated results back to arr.
+    arr.copy_from_slice(&new_arr);
+    true
 }

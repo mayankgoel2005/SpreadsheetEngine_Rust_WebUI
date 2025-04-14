@@ -40,7 +40,6 @@ pub fn min_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
         }
 
         colon = open + 1 + colon_pos.unwrap();
-        println!("open: {}, colon: {}", open, colon);
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
@@ -115,7 +114,6 @@ pub fn max_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
         }
 
         colon = open + 1 + colon_pos.unwrap();
-        println!("open: {}, colon: {}", open, colon);
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
@@ -159,6 +157,7 @@ pub fn max_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
             }
         }
     }
+    println!("Max value: {}", max_value);
     arr[first_cell as usize] = max_value;
 }
 
@@ -190,7 +189,6 @@ pub fn avg_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
         }
 
         colon = open + 1 + colon_pos.unwrap();
-        println!("open: {}, colon: {}", open, colon);
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
@@ -254,7 +252,6 @@ pub fn sum_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
         }
 
         colon = open + 1 + colon_pos.unwrap();
-        println!("open: {}, colon: {}", open, colon);
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
@@ -315,7 +312,6 @@ pub fn standard_dev_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _po
         }
 
         colon = open + 1 + colon_pos.unwrap();
-        println!("open: {}, colon: {}", open, colon);
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;

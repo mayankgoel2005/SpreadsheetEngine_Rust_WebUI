@@ -1,5 +1,3 @@
-// src/input_parser.rs
-
 use std::time::Instant;
 use crate::spreadsheet::Spreadsheet;
 use crate::graph::{
@@ -9,7 +7,7 @@ use crate::functions::{
     max_func, sum_func, standard_dev_func, avg_func, min_func, sleep_func
 };
 
-// Keep track of old values in case you revert them
+// Keep track of old values in case you need to revert them.
 static mut OLD_VALUE: i32 = 0;
 static mut OLD_OP_TYPE: i32 = 0;
 static mut OLD_P1: i32 = 0;
@@ -41,14 +39,12 @@ pub fn cell_parser(
     let mut dfound = false;
 
     for ch in formula.chars() {
-        println!("x={}", ch);
         if is_alpha(ch) {
             if !dfound {
                 // Convert letter(s) to 1-based col index
                 cell_col = cell_col * 26 + (ch as i32 - 'A' as i32 + 1);
-                println!("cell_col={}", cell_col);
             } else {
-                // We encountered digits, then an alpha => invalid
+                // We encountered digits then an alpha => invalid
                 return -1;
             }
         } else if is_digit(ch) {
@@ -60,12 +56,10 @@ pub fn cell_parser(
         }
     }
 
-    // Convert from 1-based to 0-based
+    // Convert from 1-based to 0-based indices
     cell_col -= 1;
     cell_row -= 1;
-    println!("{}  {}  {}  {}", cols, rows, cell_col, cell_row);
 
-    // Check bounds
     if cell_col < 0 || cell_row < 0 || cell_col >= cols || cell_row >= rows {
         -1
     } else {
@@ -84,7 +78,9 @@ fn return_optype(op: Option<char>) -> i32 {
     }
 }
 
-/// Handle a formula that is just `<cell> = <value>` or `<cell> = <someOtherCell>`.
+/// A transactional value function that processes formulas of the form <cell> = <value>
+/// or <cell> = <someOtherCell>.
+/// If recalc (which checks for cycles) fails, the update is completely rejected.
 fn value_func(
     formula: &str,
     c: i32,
@@ -95,25 +91,24 @@ fn value_func(
     graph: &mut Graph,
     formula_array: &mut [Formula]
 ) {
-    // E.g., formula might be "A1 = 42" or "A1 = B2"
+    // Example: formula might be "A1 = 42" or "A1 = B2"
     let ref_sub = &formula[..pos_equal as usize];
     let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
-    println!("first={}", first);
 
     if first == -1 {
-        println!("invalid cell");
+        println!("Invalid destination cell");
         return;
     }
 
+    // Save the current cell state.
     unsafe {
-        // Save old state for potential revert
         OLD_VALUE = arr[first as usize];
         OLD_OP_TYPE = formula_array[first as usize].op_type;
         OLD_P1 = formula_array[first as usize].p1;
         OLD_P2 = formula_array[first as usize].p2;
     }
 
-    // If there was an existing formula, remove its edges
+    // Remove any existing dependencies for this cell.
     if formula_array[first as usize].op_type > 0 {
         delete_edge(graph, first, c, formula_array);
     }
@@ -122,9 +117,9 @@ fn value_func(
     let mut is_cell = 0;
     let mut is_negative = 0;
     let mut pos_eq = pos_equal;
-    let x = formula.chars().nth(pos_eq as usize + 1).unwrap();
+    let x = formula.chars().nth((pos_eq + 1) as usize).unwrap();
 
-    // Check if next character is +/- sign
+    // Check for a leading sign.
     if x == '-' || x == '+' {
         if x == '-' {
             is_negative = 1;
@@ -132,68 +127,75 @@ fn value_func(
         pos_eq += 1;
     }
 
-    // Distinguish literal number vs cell reference
+    // Distinguish literal number vs. cell reference.
     if is_digit(x) {
-        // It's a numeric literal
-        println!("{}", x);
+        // Numeric literal.
         let tmp = &formula[(pos_eq + 1) as usize..];
         second = tmp.trim().parse().unwrap_or(0);
-        println!("second={}", second);
     } else {
-        // It's a cell reference
+        // Cell reference.
         second = cell_parser(formula, c, r, pos_eq + 1, pos_end - 1, graph);
         is_cell = 1;
     }
 
     if second == -1 {
-        println!("invalid cell");
+        println!("Invalid cell reference");
         return;
     }
 
-    // If negative sign was found and it's a direct number
     if is_negative == 1 && is_cell == 0 {
         second = -second;
     }
 
-    // If second is a literal
+    // Apply the formula.
     if is_cell == 0 {
         arr[first as usize] = second;
         add_formula(graph, first, second, 0, 0, formula_array);
-        recalculate(graph, c, arr, first, formula_array);
     } else {
-        // second is a cell reference
         if is_negative == 1 {
             let tmp = -1 * arr[second as usize];
             arr[first as usize] = tmp;
             graph.adj[second as usize] = Some(add_edge(first, graph.adj[second as usize].take()));
             add_formula(graph, first, second, -1, 3, formula_array);
-            recalculate(graph, c, arr, first, formula_array);
         } else {
-            println!("heyu");
             let tmp = arr[second as usize];
             arr[first as usize] = tmp;
             graph.adj[second as usize] = Some(add_edge(first, graph.adj[second as usize].take()));
             add_formula(graph, first, second, 0, 1, formula_array);
-            recalculate(graph, c, arr, first, formula_array);
         }
     }
 
-    // If something triggered `HAS` to revert changes
+    // Attempt to recalculate downstream formulas.
+    let b = recalculate(graph, c, arr, first, formula_array);
+    if !b {
+        // If recalculation fails (circular dependency detected), revert.
+        println!("Formula rejected due to circular dependency. Reverting changes.");
+        arr[first as usize] = unsafe { OLD_VALUE };
+        delete_edge(graph, first, c, formula_array);
+        unsafe {
+            formula_array[first as usize].op_type = OLD_OP_TYPE;
+            formula_array[first as usize].p1 = OLD_P1;
+            formula_array[first as usize].p2 = OLD_P2;
+        }
+        add_edge_formula(graph, first, c, formula_array);
+        return;
+    }
+
+    // If any external revert trigger (HAS flag) is set, revert too.
     unsafe {
         if HAS != 0 {
             arr[first as usize] = OLD_VALUE;
             delete_edge(graph, first, c, formula_array);
-
             formula_array[first as usize].op_type = OLD_OP_TYPE;
             formula_array[first as usize].p1 = OLD_P1;
             formula_array[first as usize].p2 = OLD_P2;
-
             add_edge_formula(graph, first, c, formula_array);
         }
     }
 }
 
-/// Handle arithmetic expressions like "A1 = 5+10", "B2 = C1 + D3", etc.
+/// Handle arithmetic expressions like "A1 = 5+10" or "B2 = C1 + D3".
+/// Similar transactional logic (check recalc before committing) should be applied.
 fn arth_op(
     formula: &str,
     c: i32,
@@ -210,24 +212,22 @@ fn arth_op(
     let mut opind = -1;
     let mut pt = pos_equal + 1;
 
-    // Find the first operator (+, -, *, /)
+    // Find the operator (+, -, *, /)
     for ch in formula[(pos_equal + 1) as usize..].chars() {
-        println!("ch={} {}", ch, pt);
         if ch == '+' || ch == '-' || ch == '*' || ch == '/' {
             op = Some(ch);
             opind = pt;
             break;
         }
         pt += 1;
-        println!("{}", opind);
     }
 
     if opind == -1 {
-        println!("Invalid input");
+        println!("Invalid arithmetic input");
         return;
     }
 
-    // We'll parse the left operand
+    // Parse the left operand.
     let mut is1cell = 0;
     let mut is1num = 0;
     let mut sign1 = 1;
@@ -279,7 +279,7 @@ fn arth_op(
         }
     }
 
-    // Parse the right operand
+    // Parse the right operand.
     let mut is2cell = 0;
     let mut is2num = 0;
     let mut sign2 = 1;
@@ -332,16 +332,16 @@ fn arth_op(
     }
 
     if notvalid == 1 || (is1cell == 0 && is1num == 0) || (is2cell == 0 && is2num == 0) {
-        println!("Invalid command\n");
+        println!("Invalid arithmetic command\n");
         return;
     }
 
-    // Evaluate left operand => second_cell
+    // Evaluate left operand (call it second_cell)
     let mut second_cell = -1;
     if is1cell != 0 {
         second_cell = cell_parser(&cell1, c, r, 0, l1 - 2, graph);
         if second_cell == -1 {
-            println!("Invalid cell reference A\n");
+            println!("Invalid cell reference in arithmetic (left operand)\n");
             return;
         }
         second_cell = sign1 * second_cell;
@@ -349,12 +349,12 @@ fn arth_op(
         second_cell = num1.parse::<i32>().unwrap() * sign1;
     }
 
-    // Evaluate right operand => third_cell
+    // Evaluate right operand (call it third_cell)
     let mut third_cell = -1;
     if is2cell != 0 {
         third_cell = cell_parser(&cell2, c, r, 0, (l2 - 2) as i32, graph);
         if third_cell == -1 {
-            println!("Invalid cell reference B\n");
+            println!("Invalid cell reference in arithmetic (right operand)\n");
             return;
         }
         third_cell = sign2 * third_cell;
@@ -362,16 +362,13 @@ fn arth_op(
         third_cell = num2.parse::<i32>().unwrap() * sign2;
     }
 
-    // Evaluate the cell on the left side of "="
+    // Evaluate the destination cell (left of '=')
     let ref_sub = &formula[..pos_equal as usize];
-    println!("ref_sub={}", ref_sub);
     let first_cell = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
     if first_cell == -1 {
-        println!("Invalid cell reference C\n");
+        println!("Invalid destination cell in arithmetic\n");
         return;
     }
-
-    println!("{} {} {}", first_cell, second_cell, third_cell);
 
     unsafe {
         OLD_VALUE = arr[first_cell as usize];
@@ -380,34 +377,33 @@ fn arth_op(
         OLD_P2 = formula_array[first_cell as usize].p2;
     }
 
-    // If the left cell already had a formula, remove it
+    // Remove existing formula, if any
     if formula_array[first_cell as usize].op_type > 0 {
         delete_edge(graph, first_cell, c, formula_array);
     }
 
-    // Now handle various combos:
+    // Now handle combinations of cell vs number operands.
     if is1cell == 0 && is2cell == 0 {
-        // both sides are numeric
+        // Both sides are numeric.
         res = arith(second_cell, third_cell, op);
         arr[first_cell as usize] = res;
         add_formula(graph, first_cell, res, 0, 0, formula_array);
     } else if is1cell == 1 && is2cell == 0 {
-        // left operand is a cell, right is numeric
+        // Left operand is a cell, right is numeric.
         let val_left = arr[second_cell as usize];
         res = arith(val_left, third_cell, op);
         arr[first_cell as usize] = res;
         graph.adj[second_cell as usize] = Some(add_edge(first_cell, graph.adj[second_cell as usize].take()));
         add_formula(graph, first_cell, second_cell, third_cell, return_optype(op), formula_array);
     } else if is1cell == 0 && is2cell == 1 {
-        // left operand is numeric, right is a cell
+        // Left operand is numeric, right is a cell.
         let val_right = arr[third_cell as usize];
         res = arith(second_cell, val_right, op);
         arr[first_cell as usize] = res;
         graph.adj[third_cell as usize] = Some(add_edge(first_cell, graph.adj[third_cell as usize].take()));
         add_formula(graph, first_cell, third_cell, second_cell, return_optype(op), formula_array);
     } else {
-        // both are cell references
-        println!("{} UH", second_cell);
+        // Both operands are cell references.
         let val_left = arr[second_cell as usize];
         let val_right = arr[third_cell as usize];
         res = arith(val_left, val_right, op);
@@ -415,23 +411,33 @@ fn arth_op(
         graph.adj[second_cell as usize] = Some(add_edge(first_cell, graph.adj[second_cell as usize].take()));
         graph.adj[third_cell as usize] = Some(add_edge(first_cell, graph.adj[third_cell as usize].take()));
         add_formula(graph, first_cell, second_cell, third_cell, return_optype(op), formula_array);
-        // Possibly storing a second formula? (Your code does "optype + 4")
+        // Additional formula edge (e.g., for specific arithmetic operations)
         add_formula(graph, first_cell, second_cell, third_cell, return_optype(op) + 4, formula_array);
     }
 
-    // Recalculate downstream dependencies
-    recalculate(graph, c, arr, first_cell, formula_array);
-
-    // If a revert was triggered
-    unsafe {
-        if HAS == 1 {
-            arr[first_cell as usize] = OLD_VALUE;
-            delete_edge(graph, first_cell, c, formula_array);
-
+    // Attempt recalculation.
+    let b = recalculate(graph, c, arr, first_cell, formula_array);
+    if !b {
+        // If recalculation (and thus dependency validation) fails, revert changes.
+        println!("Formula rejected due to circular dependency. Reverting changes.");
+        arr[first_cell as usize] = unsafe { OLD_VALUE };
+        delete_edge(graph, first_cell, c, formula_array);
+        unsafe {
             formula_array[first_cell as usize].op_type = OLD_OP_TYPE;
             formula_array[first_cell as usize].p1 = OLD_P1;
             formula_array[first_cell as usize].p2 = OLD_P2;
+        }
+        add_edge_formula(graph, first_cell, c, formula_array);
+        return;
+    }
 
+    unsafe {
+        if HAS != 0 {
+            arr[first_cell as usize] = OLD_VALUE;
+            delete_edge(graph, first_cell, c, formula_array);
+            formula_array[first_cell as usize].op_type = OLD_OP_TYPE;
+            formula_array[first_cell as usize].p1 = OLD_P1;
+            formula_array[first_cell as usize].p2 = OLD_P2;
             add_edge_formula(graph, first_cell, c, formula_array);
         }
     }
@@ -452,7 +458,7 @@ fn funct(
     let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
 
     if first == -1 {
-        println!("Invalid cellM");
+        println!("Invalid destination cell in function");
         return;
     }
 
@@ -475,11 +481,8 @@ fn funct(
             println!("Invalid range: Missing or misplaced parentheses\n");
             return;
         }
-
-        let open_idx = pos_equal + open as i32;
-        let close_idx = pos_equal + close as i32;
-        let inside: &str = &formula[(open_idx + 1) as usize..close_idx as usize];
-        println!("Inside parentheses: {}", inside);
+        // We extract the inside of the parentheses if needed.
+        let _inside: &str = &formula[(pos_equal + open as i32 + 1) as usize..(pos_equal + close as i32) as usize];
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
@@ -487,82 +490,82 @@ fn funct(
 
     let idx_open = pos_equal + open_paren1.unwrap() as i32;
     if idx_open - pos_equal >= 3 {
-        // e.g., = STDEV(...) => 5 chars
+        // For functions with names of fixed length.
         if idx_open - pos_equal - 1 == 5 {
             if formula[(pos_equal + 1) as usize..].starts_with("STDEV") {
                 standard_dev_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
-                recalculate(graph, c, arr, first, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("SLEEP") {
                 sleep_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
-                recalculate(graph, c, arr, first, formula_array);
             }
-        }
-        // e.g., = MIN(...) => 3 chars
-        else if idx_open - pos_equal - 1 == 3 {
+        } else if idx_open - pos_equal - 1 == 3 {
             if formula[(pos_equal + 1) as usize..].starts_with("MIN") {
                 min_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
-                recalculate(graph, c, arr, first, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("MAX") {
+                println!("hey");
                 max_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
-                recalculate(graph, c, arr, first, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("AVG") {
                 avg_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
-                recalculate(graph, c, arr, first, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("SUM") {
                 sum_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
-                recalculate(graph, c, arr, first, formula_array);
             } else {
                 println!("Invalid function\n");
+                return;
             }
         } else {
             println!("Invalid function\n");
+            return;
         }
     } else {
         println!("Invalid function\n");
+        return;
     }
 
-    // If something triggers revert:
+    let b = recalculate(graph, c, arr, first, formula_array);
+    if !b {
+        println!("Formula rejected due to circular dependency. Reverting changes.");
+        arr[first as usize] = unsafe { OLD_VALUE };
+        delete_edge(graph, first, c, formula_array);
+        unsafe {
+            formula_array[first as usize].op_type = OLD_OP_TYPE;
+            formula_array[first as usize].p1 = OLD_P1;
+            formula_array[first as usize].p2 = OLD_P2;
+        }
+        add_edge_formula(graph, first, c, formula_array);
+        return;
+    }
+
     unsafe {
         if HAS != 0 {
             arr[first as usize] = OLD_VALUE;
             delete_edge(graph, first, c, formula_array);
-
             formula_array[first as usize].op_type = OLD_OP_TYPE;
             formula_array[first as usize].p1 = OLD_P1;
             formula_array[first as usize].p2 = OLD_P2;
-
             add_edge_formula(graph, first, c, formula_array);
         }
     }
 }
 
-/// **Main parser** — called from your WASM code with `parser(&mut s, formula)`.
-/// 
-/// Determines what kind of expression it is (simple value, arithmetic, function), 
-/// then calls the appropriate function.
+/// Main parser — called from your WASM code with parser(&mut s, formula).
+/// Determines the formula type (simple value, arithmetic, or function) then dispatches.
 pub fn parser(spreadsheet: &mut Spreadsheet, formula: &str) -> i32 {
-    println!("{}", formula);
-
-    // If formula starts with w/a/s/d, maybe it's a movement or something?
+    // Check if the formula is for movement keys.
     let first_char = formula.chars().next().unwrap();
     if ['w', 'a', 's', 'd'].contains(&first_char) {
-        // Possibly handle movement here if needed.
-        // ...
+        // Handle movement if necessary...
+        // For now, we do nothing.
     }
 
-    // Extract references from spreadsheet
     let c = spreadsheet.cols as i32;
     let r = spreadsheet.rows as i32;
     let arr = &mut spreadsheet.arr;
     let graph = &mut spreadsheet.graph;
     let formula_array = &mut spreadsheet.formula_array;
 
-    // Find '=' in the formula
+    // Find the position of '='.
     let mut pos_equal = 1000;
     let mut pos_end = 1000;
     let mut pt = 0;
-
-    // We search for '='
     for ch in formula.chars() {
         if ch == '=' && pos_equal == 1000 {
             pos_equal = pt;
@@ -572,23 +575,21 @@ pub fn parser(spreadsheet: &mut Spreadsheet, formula: &str) -> i32 {
     }
 
     if pos_equal == 1000 {
-        // No '=' means not a formula
+        // No '=' character means not a formula.
         return -1;
     }
 
-    // Heuristics to identify if it's a direct value, arithmetic, or function call
+    // Determine the formula type using basic heuristics.
     let mut value = 0;
     let mut arth_exp = 0;
     let mut func = 0;
     let mut found_digit = 0;
-
     for ch in formula[(pos_equal + 1) as usize..].chars() {
         if ch == '(' {
             func = 1;
             break;
         }
         if is_digit(ch) {
-            // Once we see a digit, if we see an operator after that, it's arithmetic
             found_digit = 1;
         }
         if (ch == '+' || ch == '-' || ch == '*' || ch == '/') && found_digit == 1 {
@@ -596,52 +597,23 @@ pub fn parser(spreadsheet: &mut Spreadsheet, formula: &str) -> i32 {
             break;
         }
     }
-
     if func == 1 && arth_exp == 1 {
         println!("Invalid input: can't be both function and arithmetic\n");
         return -1;
     }
     if func == 0 && arth_exp == 0 {
-        value = 1; // It's a simple value (like "A1=123" or "A1=B2")
+        value = 1;
     }
 
-    // Dispatch
+    // Dispatch based on the formula type.
     if value == 1 {
-        value_func(
-            formula,
-            c,
-            r,
-            pos_equal,
-            pos_end,
-            arr,
-            graph,
-            formula_array,
-        );
+        value_func(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
     } else if arth_exp == 1 {
-        arth_op(
-            formula,
-            c,
-            r,
-            pos_equal,
-            pos_end,
-            arr,
-            graph,
-            formula_array,
-        );
+        arth_op(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
     } else if func == 1 {
-        funct(
-            formula,
-            c,
-            r,
-            pos_equal,
-            pos_end,
-            arr,
-            graph,
-            formula_array,
-        );
+        funct(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
     }
 
-    // Return 1 if we recognized something, else 0
     if value == 1 || arth_exp == 1 || func == 1 {
         1
     } else {
