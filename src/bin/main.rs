@@ -1,15 +1,16 @@
 // src/bin/main.rs
-
-use std::env;
-use std::io::{self, Write};
-use std::time::Instant;
-
-// Import modules from your library (the name here must match the package name in Cargo.toml)
-use lab1_2023CS10204_2023CS10076_2023CS10186::{
-    spreadsheet, display, input_parser, graph, functions, scrolling,
-};
+#[cfg(feature = "autograder")]
 
 fn main() {
+    use std::env;
+    use std::io::{self, Write};
+    use std::time::Instant;
+
+    // Import modules from your library (the name here must match the package name in Cargo.toml)
+    use lab1_2023CS10204_2023CS10076_2023CS10186::{
+        spreadsheet, display, input_parser, graph, functions, scrolling,
+    };
+
     // Original CLI code from your previous main.rs:
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {

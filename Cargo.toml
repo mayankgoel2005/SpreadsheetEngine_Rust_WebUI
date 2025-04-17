@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 default = []
 wasm = ["wasm-bindgen"]
+autograder = []
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -13,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 [[bin]]
 name = "cli"
 path = "src/bin/main.rs"
+required-features = ["autograder"]  # Only build CLI when autograder feature is enabled
 
 [dependencies]
 wasm-bindgen = { version = "0.2", optional = true }
