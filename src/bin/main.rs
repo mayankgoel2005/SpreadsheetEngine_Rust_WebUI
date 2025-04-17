@@ -87,8 +87,8 @@ fn main() {
             continue;
         }
 
-        if trimmed.starts_with("w")
-            || trimmed.starts_with("a")
+        if trimmed == "w"
+            || trimmed == "a"
             || trimmed == "s"
             || trimmed == "d"
             || trimmed.starts_with("scroll_to ")

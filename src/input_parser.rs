@@ -130,10 +130,25 @@ fn value_func(
     // Distinguish literal number vs. cell reference.
     if is_digit(x) {
         // Numeric literal.
-        let tmp = &formula[(pos_eq + 1) as usize..];
-        second = tmp.trim().parse().unwrap_or(0);
+        let tmp = formula[(pos_eq + 1) as usize..].trim();
+
+        // Check for invalid extra content: pure integer only
+        if let Ok(val) = tmp.parse::<i32>() {
+            second = val;
+        } else if tmp.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+            // fallback – it might be a malformed cell
+            second = -1;
+        } else {
+            println!("Invalid literal or malformed expression: {}", tmp);
+            return;
+        }
     } else {
         // Cell reference.
+        let ref_part = &formula[(pos_eq + 1) as usize..pos_end as usize + 1].trim();
+        if ref_part.len() != (pos_end - pos_eq) as usize {
+            println!("Malformed cell reference or extra trailing content");
+            return;
+        }
         second = cell_parser(formula, c, r, pos_eq + 1, pos_end - 1, graph);
         is_cell = 1;
     }
@@ -475,10 +490,17 @@ fn funct(
 
     let open_paren1 = formula[pos_equal as usize..].find('(');
     let close_paren1 = formula[pos_equal as usize..].find(')');
+    
 
     if let (Some(open), Some(close)) = (open_paren1, close_paren1) {
         if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
+            return;
+        }
+        let formula_part = &formula[pos_equal as usize..];
+        if (pos_equal as usize + close + 1) < formula.len() {
+            // There's content after the closing parenthesis
+            println!("Invalid formula: Unexpected content after function\n");
             return;
         }
         // We extract the inside of the parentheses if needed.
