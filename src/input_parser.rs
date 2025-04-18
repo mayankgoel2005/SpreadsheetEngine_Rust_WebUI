@@ -96,7 +96,7 @@ fn value_func(
     let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
 
     if first == -1 {
-        println!("Invalid destination cell");
+        // println!("Invalid destination cell");
         return 1;
     }
 
@@ -139,14 +139,14 @@ fn value_func(
             // fallback – it might be a malformed cell
             second = -1;
         } else {
-            println!("Invalid literal or malformed expression: {}", tmp);
+            //println!("Invalid literal or malformed expression: {}", tmp);
             return 1;
         }
     } else {
         // Cell reference.
         let ref_part = &formula[(pos_eq + 1) as usize..pos_end as usize + 1].trim();
         if ref_part.len() != (pos_end - pos_eq) as usize {
-            println!("Malformed cell reference or extra trailing content");
+            //println!("Malformed cell reference or extra trailing content");
             return 1;
         }
         second = cell_parser(formula, c, r, pos_eq + 1, pos_end - 1, graph);
@@ -154,7 +154,7 @@ fn value_func(
     }
 
     if second == -1 {
-        println!("Invalid cell reference");
+        //println!("Invalid cell reference");
         return 1;
     }
 
@@ -184,7 +184,7 @@ fn value_func(
     let b = recalculate(graph, c, arr, first, formula_array);
     if !b {
         // If recalculation fails (circular dependency detected), revert.
-        println!("Formula rejected due to circular dependency. Reverting changes.");
+        //println!("Formula rejected due to circular dependency. Reverting changes.");
         arr[first as usize] = unsafe { OLD_VALUE };
         delete_edge(graph, first, c, formula_array);
         unsafe {
@@ -239,7 +239,7 @@ fn arth_op(
     }
 
     if opind == -1 {
-        println!("Invalid arithmetic input");
+        //println!("Invalid arithmetic input");
         return 1;
     }
 
@@ -348,7 +348,7 @@ fn arth_op(
     }
 
     if notvalid == 1 || (is1cell == 0 && is1num == 0) || (is2cell == 0 && is2num == 0) {
-        println!("Invalid arithmetic command\n");
+        //println!("Invalid arithmetic command\n");
         return 1;
     }
 
@@ -357,7 +357,7 @@ fn arth_op(
     if is1cell != 0 {
         second_cell = cell_parser(&cell1, c, r, 0, l1 - 2, graph);
         if second_cell == -1 {
-            println!("Invalid cell reference in arithmetic (left operand)\n");
+            //println!("Invalid cell reference in arithmetic (left operand)\n");
             return 1;
         }
         second_cell = sign1 * second_cell;
@@ -370,7 +370,7 @@ fn arth_op(
     if is2cell != 0 {
         third_cell = cell_parser(&cell2, c, r, 0, (l2 - 2) as i32, graph);
         if third_cell == -1 {
-            println!("Invalid cell reference in arithmetic (right operand)\n");
+            //println!("Invalid cell reference in arithmetic (right operand)\n");
             return 1;
         }
         third_cell = sign2 * third_cell;
@@ -382,7 +382,7 @@ fn arth_op(
     let ref_sub = &formula[..pos_equal as usize];
     let first_cell = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
     if first_cell == -1 {
-        println!("Invalid destination cell in arithmetic\n");
+        //println!("Invalid destination cell in arithmetic\n");
         return 1;
     }
 
@@ -435,7 +435,7 @@ fn arth_op(
     let b = recalculate(graph, c, arr, first_cell, formula_array);
     if !b {
         // If recalculation (and thus dependency validation) fails, revert changes.
-        println!("Formula rejected due to circular dependency. Reverting changes.");
+        //println!("Formula rejected due to circular dependency. Reverting changes.");
         arr[first_cell as usize] = unsafe { OLD_VALUE };
         delete_edge(graph, first_cell, c, formula_array);
         unsafe {
@@ -475,7 +475,7 @@ fn funct(
     let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
 
     if first == -1 {
-        println!("Invalid destination cell in function");
+        //println!("Invalid destination cell in function");
         return 1;
     }
 
@@ -496,19 +496,19 @@ fn funct(
 
     if let (Some(open), Some(close)) = (open_paren1, close_paren1) {
         if close <= open + 1 {
-            println!("Invalid range: Missing or misplaced parentheses\n");
+            //println!("Invalid range: Missing or misplaced parentheses\n");
             return 1;
         }
         let formula_part = &formula[pos_equal as usize..];
         if (pos_equal as usize + close + 1) < formula.len() {
             // There's content after the closing parenthesis
-            println!("Invalid formula: Unexpected content after function\n");
+            //println!("Invalid formula: Unexpected content after function\n");
             return 1;
         }
         // We extract the inside of the parentheses if needed.
         let _inside: &str = &formula[(pos_equal + open as i32 + 1) as usize..(pos_equal + close as i32) as usize];
     } else {
-        println!("Invalid range: Missing or misplaced parentheses\n");
+        //println!("Invalid range: Missing or misplaced parentheses\n");
         return 1;
     }
 
@@ -525,28 +525,28 @@ fn funct(
             if formula[(pos_equal + 1) as usize..].starts_with("MIN") {
                 min_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("MAX") {
-                println!("hey");
+                //println!("hey");
                 max_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("AVG") {
                 avg_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("SUM") {
                 sum_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else {
-                println!("Invalid function\n");
+                //println!("Invalid function\n");
                 return 1;
             }
         } else {
-            println!("Invalid function\n");
+            //println!("Invalid function\n");
             return 1;
         }
     } else {
-        println!("Invalid function\n");
+        //println!("Invalid function\n");
         return 1;
     }
 
     let b = recalculate(graph, c, arr, first, formula_array);
     if !b {
-        println!("Formula rejected due to circular dependency. Reverting changes.");
+        //println!("Formula rejected due to circular dependency. Reverting changes.");
         arr[first as usize] = unsafe { OLD_VALUE };
         delete_edge(graph, first, c, formula_array);
         unsafe {
@@ -623,7 +623,7 @@ pub fn parser(spreadsheet: &mut Spreadsheet, formula: &str) -> i32 {
         }
     }
     if func == 1 && arth_exp == 1 {
-        println!("Invalid input: can't be both function and arithmetic\n");
+        //println!("Invalid input: can't be both function and arithmetic\n");
         return -1;
     }
     if func == 0 && arth_exp == 0 {
