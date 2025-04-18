@@ -47,7 +47,7 @@ fn main() {
     }
 
     let global_start = Instant::now();
-    println!("[{:.6}] (ok)", global_start.elapsed().as_secs_f64());
+    println!("[{:.1}] (ok)", global_start.elapsed().as_secs_f64());
 
     let mut input = String::new();
     loop {
@@ -57,7 +57,7 @@ fn main() {
 
         if io::stdin().read_line(&mut input).is_err() {
             println!(
-                "[{:.6}] (Error reading input)",
+                "[{:.1}] (Error reading input)",
                 global_start.elapsed().as_secs_f64()
             );
             break;
@@ -72,7 +72,7 @@ fn main() {
 
         if trimmed == "disable_output" {
             spreadsheet.output_disabled = true;
-            println!("[{:.6}] (Output disabled)", cmd_start.elapsed().as_secs_f64());
+            println!("[{:.1}] (Output disabled)", cmd_start.elapsed().as_secs_f64());
             continue;
         } else if trimmed == "enable_output" {
             spreadsheet.output_disabled = false;
@@ -83,7 +83,7 @@ fn main() {
                 spreadsheet.cols,
                 spreadsheet.rows,
             );
-            println!("[{:.6}] (Output enabled)", cmd_start.elapsed().as_secs_f64());
+            println!("[{:.1}] (Output enabled)", cmd_start.elapsed().as_secs_f64());
             continue;
         }
 
@@ -111,9 +111,9 @@ fn main() {
             );
         }
         if status != 1 {
-            println!("[{:.6}] (ok)", elapsed);
+            println!("[{:.1}] (ok)", elapsed);
         } else {
-            println!("[{:.6}] (unrecognized command)", elapsed);
+            println!("[{:.1}] (unrecognized command)", elapsed);
         }
     }
 }

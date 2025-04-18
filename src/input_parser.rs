@@ -90,14 +90,14 @@ fn value_func(
     arr: &mut [i32],
     graph: &mut Graph,
     formula_array: &mut [Formula]
-) {
+) -> i32 {
     // Example: formula might be "A1 = 42" or "A1 = B2"
     let ref_sub = &formula[..pos_equal as usize];
     let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
 
     if first == -1 {
         println!("Invalid destination cell");
-        return;
+        return 1;
     }
 
     // Save the current cell state.
@@ -140,14 +140,14 @@ fn value_func(
             second = -1;
         } else {
             println!("Invalid literal or malformed expression: {}", tmp);
-            return;
+            return 1;
         }
     } else {
         // Cell reference.
         let ref_part = &formula[(pos_eq + 1) as usize..pos_end as usize + 1].trim();
         if ref_part.len() != (pos_end - pos_eq) as usize {
             println!("Malformed cell reference or extra trailing content");
-            return;
+            return 1;
         }
         second = cell_parser(formula, c, r, pos_eq + 1, pos_end - 1, graph);
         is_cell = 1;
@@ -155,7 +155,7 @@ fn value_func(
 
     if second == -1 {
         println!("Invalid cell reference");
-        return;
+        return 1;
     }
 
     if is_negative == 1 && is_cell == 0 {
@@ -193,7 +193,7 @@ fn value_func(
             formula_array[first as usize].p2 = OLD_P2;
         }
         add_edge_formula(graph, first, c, formula_array);
-        return;
+        return 1;
     }
 
     // If any external revert trigger (HAS flag) is set, revert too.
@@ -207,6 +207,7 @@ fn value_func(
             add_edge_formula(graph, first, c, formula_array);
         }
     }
+    return 0;
 }
 
 /// Handle arithmetic expressions like "A1 = 5+10" or "B2 = C1 + D3".
@@ -220,7 +221,7 @@ fn arth_op(
     arr: &mut [i32],
     graph: &mut Graph,
     formula_array: &mut [Formula]
-) {
+) -> i32{
     let mut res = 0;
     let mut notvalid = 0;
     let mut op: Option<char> = None;
@@ -239,7 +240,7 @@ fn arth_op(
 
     if opind == -1 {
         println!("Invalid arithmetic input");
-        return;
+        return 1;
     }
 
     // Parse the left operand.
@@ -348,7 +349,7 @@ fn arth_op(
 
     if notvalid == 1 || (is1cell == 0 && is1num == 0) || (is2cell == 0 && is2num == 0) {
         println!("Invalid arithmetic command\n");
-        return;
+        return 1;
     }
 
     // Evaluate left operand (call it second_cell)
@@ -357,7 +358,7 @@ fn arth_op(
         second_cell = cell_parser(&cell1, c, r, 0, l1 - 2, graph);
         if second_cell == -1 {
             println!("Invalid cell reference in arithmetic (left operand)\n");
-            return;
+            return 1;
         }
         second_cell = sign1 * second_cell;
     } else {
@@ -370,7 +371,7 @@ fn arth_op(
         third_cell = cell_parser(&cell2, c, r, 0, (l2 - 2) as i32, graph);
         if third_cell == -1 {
             println!("Invalid cell reference in arithmetic (right operand)\n");
-            return;
+            return 1;
         }
         third_cell = sign2 * third_cell;
     } else {
@@ -382,7 +383,7 @@ fn arth_op(
     let first_cell = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
     if first_cell == -1 {
         println!("Invalid destination cell in arithmetic\n");
-        return;
+        return 1;
     }
 
     unsafe {
@@ -443,7 +444,7 @@ fn arth_op(
             formula_array[first_cell as usize].p2 = OLD_P2;
         }
         add_edge_formula(graph, first_cell, c, formula_array);
-        return;
+        return 1;
     }
 
     unsafe {
@@ -456,6 +457,7 @@ fn arth_op(
             add_edge_formula(graph, first_cell, c, formula_array);
         }
     }
+    return 0;
 }
 
 /// Handle functions like SUM, AVG, MIN, MAX, STDEV, SLEEP.
@@ -468,13 +470,13 @@ fn funct(
     arr: &mut [i32],
     graph: &mut Graph,
     formula_array: &mut [Formula]
-) {
+) -> i32 {
     let ref_sub = &formula[..pos_equal as usize];
     let first = cell_parser(ref_sub, c, r, 0, pos_equal - 1, graph);
 
     if first == -1 {
         println!("Invalid destination cell in function");
-        return;
+        return 1;
     }
 
     unsafe {
@@ -495,19 +497,19 @@ fn funct(
     if let (Some(open), Some(close)) = (open_paren1, close_paren1) {
         if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
-            return;
+            return 1;
         }
         let formula_part = &formula[pos_equal as usize..];
         if (pos_equal as usize + close + 1) < formula.len() {
             // There's content after the closing parenthesis
             println!("Invalid formula: Unexpected content after function\n");
-            return;
+            return 1;
         }
         // We extract the inside of the parentheses if needed.
         let _inside: &str = &formula[(pos_equal + open as i32 + 1) as usize..(pos_equal + close as i32) as usize];
     } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
-        return;
+        return 1;
     }
 
     let idx_open = pos_equal + open_paren1.unwrap() as i32;
@@ -531,15 +533,15 @@ fn funct(
                 sum_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else {
                 println!("Invalid function\n");
-                return;
+                return 1;
             }
         } else {
             println!("Invalid function\n");
-            return;
+            return 1;
         }
     } else {
         println!("Invalid function\n");
-        return;
+        return 1;
     }
 
     let b = recalculate(graph, c, arr, first, formula_array);
@@ -553,7 +555,7 @@ fn funct(
             formula_array[first as usize].p2 = OLD_P2;
         }
         add_edge_formula(graph, first, c, formula_array);
-        return;
+        return 1;
     }
 
     unsafe {
@@ -566,6 +568,7 @@ fn funct(
             add_edge_formula(graph, first, c, formula_array);
         }
     }
+    return 0;
 }
 
 /// Main parser — called from your WASM code with parser(&mut s, formula).
@@ -626,19 +629,19 @@ pub fn parser(spreadsheet: &mut Spreadsheet, formula: &str) -> i32 {
     if func == 0 && arth_exp == 0 {
         value = 1;
     }
-
+    let mut status1 : i32 = 1;
     // Dispatch based on the formula type.
     if value == 1 {
-        value_func(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
+        status1 = value_func(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
     } else if arth_exp == 1 {
-        arth_op(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
+        status1 = arth_op(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
     } else if func == 1 {
-        funct(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
+        status1 = funct(formula, c, r, pos_equal, pos_end, arr, graph, formula_array);
     }
 
-    if value == 1 || arth_exp == 1 || func == 1 {
-        1
-    } else {
+    if status1 == 0 {
         0
+    } else {
+        1
     }
 }
