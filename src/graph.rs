@@ -357,7 +357,7 @@ pub fn arith(v1: i32, v2: i32, op: Option<char>) -> i32 {
 
 pub fn recalculate(
     graph: &mut Graph,
-    _cols: i32,
+    cols: i32,
     arr: &mut [i32],
     start_cell: i32,
     formula_array: &[Formula]
@@ -389,7 +389,6 @@ pub fn recalculate(
                 new_arr[cell as usize] = if f.p1 == std::i32::MIN { std::i32::MIN } else { f.p1 };
             }
             1..=4 => {
-                // Arithmetic: one constant second operand
                 let v1 = new_arr[f.p1 as usize];
                 let v2 = f.p2;
                 if v1 == std::i32::MIN {
@@ -406,7 +405,6 @@ pub fn recalculate(
                 }
             }
             5..=8 => {
-                // Arithmetic: two cell operands
                 let v1 = new_arr[f.p1 as usize];
                 let v2 = new_arr[f.p2 as usize];
                 if v1 == std::i32::MIN || v2 == std::i32::MIN || (f.op_type == 8 && v2 == 0) {
@@ -419,26 +417,37 @@ pub fn recalculate(
                 new_arr[cell as usize] = arith(v1, v2, Some(op));
             }
             9..=13 => {
-                // Advanced functions: MIN, MAX, AVG, SUM, STDEV over a range
-                let start = f.p1 as usize;
-                let end = f.p2 as usize;
-                // Propagate error if any input in the range is ERR
-                if (start..=end).any(|i| new_arr[i] == std::i32::MIN) {
-                    new_arr[cell as usize] = std::i32::MIN;
-                    continue;
-                }
+                let start_idx = f.p1 as usize;
+                let end_idx = f.p2 as usize;
+                let start_row = start_idx / cols as usize;
+                let start_col = start_idx % cols as usize;
+                let end_row = end_idx / cols as usize;
+                let end_col = end_idx % cols as usize;
+
                 let mut count = 0;
                 let mut sum = 0;
                 let mut min_value = std::i32::MAX;
                 let mut max_value = std::i32::MIN;
-                for i in start..=end {
-                    let v = new_arr[i];
-                    count += 1;
-                    sum += v;
-                    if v < min_value { min_value = v; }
-                    if v > max_value { max_value = v; }
+                let mut sd_acc = 0.0;
+                let mut has_err = false;
+
+                for row in start_row..=end_row {
+                    for col in start_col..=end_col {
+                        let idx = row * cols as usize + col;
+                        let val = new_arr[idx];
+                        if val == std::i32::MIN {
+                            has_err = true;
+                        }
+                        count += 1;
+                        sum += val;
+                        if val < min_value { min_value = val; }
+                        if val > max_value { max_value = val; }
+                    }
                 }
-                if count == 0 {
+
+                if has_err {
+                    new_arr[cell as usize] = std::i32::MIN;
+                } else if count == 0 {
                     new_arr[cell as usize] = std::i32::MIN;
                 } else {
                     match f.op_type {
@@ -448,10 +457,12 @@ pub fn recalculate(
                         12 => new_arr[cell as usize] = sum,
                         13 => {
                             let avg = sum as f64 / count as f64;
-                            let mut sd_acc = 0.0;
-                            for i in start..=end {
-                                let v = new_arr[i] as f64;
-                                sd_acc += (v - avg).powi(2);
+                            for row in start_row..=end_row {
+                                for col in start_col..=end_col {
+                                    let idx = row * cols as usize + col;
+                                    let v = new_arr[idx] as f64;
+                                    sd_acc += (v - avg).powi(2);
+                                }
                             }
                             new_arr[cell as usize] = (sd_acc / count as f64).sqrt() as i32;
                         }
@@ -460,7 +471,6 @@ pub fn recalculate(
                 }
             }
             14 => {
-                // Sleep: simply set to the stored value
                 let val = if f.p1 == cell { f.p2 } else { new_arr[f.p1 as usize] };
                 new_arr[cell as usize] = val;
             }
@@ -468,7 +478,6 @@ pub fn recalculate(
         }
     }
 
-    // Commit simulated results
     arr.copy_from_slice(&new_arr);
     true
 }
