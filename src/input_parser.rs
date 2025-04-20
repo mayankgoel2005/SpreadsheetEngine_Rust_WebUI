@@ -1,4 +1,3 @@
-use std::time::Instant;
 use crate::spreadsheet::Spreadsheet;
 use crate::graph::{
     Graph, Formula, arith, add_formula, add_edge, delete_edge, recalculate, add_edge_formula
@@ -113,7 +112,7 @@ fn value_func(
         delete_edge(graph, first, c, formula_array);
     }
 
-    let mut second = -1;
+    let mut second;
     let mut is_cell = 0;
     let mut is_negative = 0;
     let mut pos_eq = pos_equal;
@@ -144,12 +143,8 @@ fn value_func(
         }
     } else {
         // Cell reference.
-        let ref_part = &formula[(pos_eq + 1) as usize..pos_end as usize + 1].trim();
-        if ref_part.len() != (pos_end - pos_eq) as usize {
-            //println!("Malformed cell reference or extra trailing content");
-            return 1;
-        }
-        second = cell_parser(formula, c, r, pos_eq + 1, pos_end - 1, graph);
+        let ref_part = formula[(pos_eq + 1) as usize..].trim();
+        second = cell_parser(ref_part, c, r, pos_eq + 1, pos_end - 1, graph);
         is_cell = 1;
     }
 
@@ -217,12 +212,12 @@ fn arth_op(
     c: i32,
     r: i32,
     pos_equal: i32,
-    pos_end: i32,
+    _pos_end: i32,
     arr: &mut [i32],
     graph: &mut Graph,
     formula_array: &mut [Formula]
 ) -> i32{
-    let mut res = 0;
+    let res;
     let mut notvalid = 0;
     let mut op: Option<char> = None;
     let mut opind = -1;
@@ -353,7 +348,7 @@ fn arth_op(
     }
 
     // Evaluate left operand (call it second_cell)
-    let mut second_cell = -1;
+    let mut second_cell;
     if is1cell != 0 {
         second_cell = cell_parser(&cell1, c, r, 0, l1 - 2, graph);
         if second_cell == -1 {
@@ -366,7 +361,7 @@ fn arth_op(
     }
 
     // Evaluate right operand (call it third_cell)
-    let mut third_cell = -1;
+    let mut third_cell;
     if is2cell != 0 {
         third_cell = cell_parser(&cell2, c, r, 0, (l2 - 2) as i32, graph);
         if third_cell == -1 {
@@ -499,7 +494,7 @@ fn funct(
             //println!("Invalid range: Missing or misplaced parentheses\n");
             return 1;
         }
-        let formula_part = &formula[pos_equal as usize..];
+        let _formula_part = &formula[pos_equal as usize..];
         if (pos_equal as usize + close + 1) < formula.len() {
             // There's content after the closing parenthesis
             //println!("Invalid formula: Unexpected content after function\n");

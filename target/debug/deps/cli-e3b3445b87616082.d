@@ -1,5 +1,0 @@
-/Users/mainkk/Documents/COP290_Rust_Lab/lab1_2023CS10204_2023CS10076_2023CS10186/target/debug/deps/libcli-e3b3445b87616082.rmeta: src/bin/main.rs
-
-/Users/mainkk/Documents/COP290_Rust_Lab/lab1_2023CS10204_2023CS10076_2023CS10186/target/debug/deps/cli-e3b3445b87616082.d: src/bin/main.rs
-
-src/bin/main.rs:

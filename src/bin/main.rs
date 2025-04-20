@@ -7,8 +7,8 @@ fn main() {
     use std::time::Instant;
 
     // Import modules from your library (the name here must match the package name in Cargo.toml)
-    use lab1_2023CS10204_2023CS10076_2023CS10186::{
-        spreadsheet, display, input_parser, graph, functions, scrolling,
+    use lab1::{
+        spreadsheet, display, input_parser, scrolling,
     };
 
     // Original CLI code from your previous main.rs:
@@ -47,19 +47,16 @@ fn main() {
     }
 
     let global_start = Instant::now();
-    println!("[{:.1}] (ok)", global_start.elapsed().as_secs_f64());
+    // Print prompt on same line
+    print!("[{:.1}] (ok) > ", global_start.elapsed().as_secs_f64());
+    io::stdout().flush().unwrap();
 
     let mut input = String::new();
     loop {
-        print!("> ");
-        io::stdout().flush().unwrap();
         input.clear();
 
         if io::stdin().read_line(&mut input).is_err() {
-            println!(
-                "[{:.1}] (Error reading input)",
-                global_start.elapsed().as_secs_f64()
-            );
+            eprintln!("[{:.1}] (Error reading input)", global_start.elapsed().as_secs_f64());
             break;
         }
         let trimmed = input.trim();
@@ -73,7 +70,6 @@ fn main() {
         if trimmed == "disable_output" {
             spreadsheet.output_disabled = true;
             println!("[{:.1}] (Output disabled)", cmd_start.elapsed().as_secs_f64());
-            continue;
         } else if trimmed == "enable_output" {
             spreadsheet.output_disabled = false;
             display::printer(
@@ -84,36 +80,37 @@ fn main() {
                 spreadsheet.rows,
             );
             println!("[{:.1}] (Output enabled)", cmd_start.elapsed().as_secs_f64());
-            continue;
-        }
-
-        if trimmed == "w"
-            || trimmed == "a"
-            || trimmed == "s"
-            || trimmed == "d"
-            || trimmed.starts_with("scroll_to ")
-        {
-            scrolling::scroller(trimmed, &mut spreadsheet);
         } else {
-            // IMPORTANT: Call the new parser function with a mutable reference
-            // and the input command (formula) as a string.
-            status = input_parser::parser(&mut spreadsheet, trimmed);
-        }
+            if trimmed == "w"
+                || trimmed == "a"
+                || trimmed == "s"
+                || trimmed == "d"
+                || trimmed.starts_with("scroll_to ")
+            {
+                scrolling::scroller(trimmed, &mut spreadsheet);
+            } else {
+                // IMPORTANT: Call the new parser function with a mutable reference
+                // and the input command (formula) as a string.
+                status = input_parser::parser(&mut spreadsheet, trimmed);
+            }
 
-        let elapsed = cmd_start.elapsed().as_secs_f64();
-        if !spreadsheet.output_disabled {
-            display::printer(
-                spreadsheet.curr_x,
-                spreadsheet.curry,
-                &spreadsheet.arr,
-                spreadsheet.cols,
-                spreadsheet.rows,
-            );
-        }
-        if status != 1 {
-            println!("[{:.1}] (ok)", elapsed);
-        } else {
-            println!("[{:.1}] (unrecognized command)", elapsed);
+            let elapsed = cmd_start.elapsed().as_secs_f64();
+            if !spreadsheet.output_disabled {
+                display::printer(
+                    spreadsheet.curr_x,
+                    spreadsheet.curry,
+                    &spreadsheet.arr,
+                    spreadsheet.cols,
+                    spreadsheet.rows,
+                );
+            }
+            // Print prompt without newline, then flush
+            if status != 1 {
+                print!("[{:.1}] (ok) > ", elapsed);
+            } else {
+                print!("[{:.1}] (unrecognized command) > ", elapsed);
+            }
+            io::stdout().flush().unwrap();
         }
     }
 }

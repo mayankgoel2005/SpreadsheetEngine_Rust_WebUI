@@ -1,8 +1,8 @@
 use std::i32;
-use std::thread;
-use std::time::Duration;
 use crate::graph::{Graph, Formula, add_formula, add_edge};
 use crate::input_parser::{cell_parser};
+use std::thread;
+use std::time::Duration;
 
 fn validate_range(range_start: i32, range_end: i32, cols: i32) -> bool {
     let start_row = range_start / cols;
@@ -64,7 +64,7 @@ pub fn min_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
     if start_row == end_row {
         for idx in range_start..=range_end {
             graph.adj[idx as usize] = Some(add_edge(first_cell, graph.adj[idx as usize].take()));
-            if (arr[idx as usize] < min_value) {
+            if arr[idx as usize] < min_value {
                 min_value = arr[idx as usize];
             }
         }
@@ -77,7 +77,7 @@ pub fn min_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
             for col in col_start..=col_end {
                 let idx = row * cols + col;
                 graph.adj[idx as usize] = Some(add_edge(first_cell, graph.adj[idx as usize].take()));
-                if (arr[idx as usize] < min_value) {
+                if arr[idx as usize] < min_value {
                     min_value = arr[idx as usize];
                 }
             }
@@ -138,7 +138,7 @@ pub fn max_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
     if start_row == end_row {
         for idx in range_start..=range_end {
             graph.adj[idx as usize] = Some(add_edge(first_cell, graph.adj[idx as usize].take()));
-            if (arr[idx as usize] > max_value) {
+            if arr[idx as usize] > max_value {
                 max_value = arr[idx as usize];
             }
         }
@@ -157,7 +157,6 @@ pub fn max_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: us
             }
         }
     }
-    println!("Max value: {}", max_value);
     arr[first_cell as usize] = max_value;
 }
 
@@ -360,32 +359,34 @@ pub fn standard_dev_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _po
 }
 
 pub fn sleep_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: usize, arr: &mut [i32], graph: &mut Graph, formula_array: &mut [Formula]) {
-    let target_cell = cell_parser(a, cols, rows, 0, (pos_equal_to - 1) as i32, graph);
+    let target_cell = cell_parser(&a[..pos_equal_to], cols, rows, 0, (pos_equal_to - 1) as i32, graph);
     if target_cell == -1 {
         println!("Invalid destination cell\n");
         return;
     }
     let open_paren = a[pos_equal_to..].find('(');
     let close_paren = a[pos_equal_to..].find(')');
-    if let (Some(&open_paren), Some(&close_paren)) = (open_paren.as_ref(), close_paren.as_ref()) {
-        if close_paren <= open_paren + 1 {
+    let open;
+    let close;
+    if let (Some(open_rel), Some(close_rel)) = (open_paren, close_paren) {
+        open = pos_equal_to + open_rel;
+        close = pos_equal_to + close_rel;
+
+        if close <= open + 1 {
             println!("Invalid range: Missing or misplaced parentheses\n");
             return;
         }
-    }else{
+    } else {
         println!("Invalid range: Missing or misplaced parentheses\n");
         return;
     }
-    let open = open_paren.unwrap();
-    let close = close_paren.unwrap();
-    let ref_cell = cell_parser(a, cols, rows, (open as i32) +1, (close as i32)-1, graph);
+    let ref_sub1 = &a[open+1..close];
     let sleep_value: i32;
-
+    let ref_cell = cell_parser(ref_sub1, cols, rows, (open as i32) + 1, (close as i32) - 1, graph);
     if ref_cell != -1 {
         sleep_value = arr[ref_cell as usize];
 
         if sleep_value == i32::MIN {
-            println!("Referenced cell {} contains an error value", ref_cell);
             arr[target_cell as usize] = i32::MIN;
             return;
         }
@@ -412,6 +413,8 @@ pub fn sleep_func(a: &str, cols: i32, rows: i32, pos_equal_to: usize, _pos_end: 
         arr[target_cell as usize] = sleep_value;
         add_formula(graph, target_cell, if ref_cell != - 1 { ref_cell } else { target_cell }, sleep_value,14, formula_array,);
         return;
+    }else{
+        thread::sleep(Duration::from_secs(sleep_value as u64))
     }
 
     add_formula(graph, target_cell, if ref_cell != -1 { ref_cell } else { target_cell }, sleep_value, 14, formula_array,);

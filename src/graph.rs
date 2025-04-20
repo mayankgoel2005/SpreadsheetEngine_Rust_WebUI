@@ -1,11 +1,7 @@
 use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
-use std::thread;
-use std::time::Duration;
-use crate::input_parser::HAS;
 const INT_MIN: i32 = i32::MIN;
-const INT_MAX: i32 = i32::MAX;
 const CELLS: usize = 18278000;
 
 #[derive(Debug)]
@@ -361,12 +357,12 @@ pub fn arith(v1: i32, v2: i32, op: Option<char>) -> i32 {
 
 pub fn recalculate(
     graph: &mut Graph,
-    cols: i32,
+    _cols: i32,
     arr: &mut [i32],
     start_cell: i32,
     formula_array: &[Formula]
 ) -> bool {
-    // Attempt a topological sort starting at `start_cell`
+    // Topological sort to detect cycles and determine update order
     let mut size = 0;
     let mut has_cycle = 0;
     let sorted_cells = match topological_sort(graph, start_cell, &mut size, &mut has_cycle) {
@@ -377,132 +373,102 @@ pub fn recalculate(
         }
     };
 
-    // Clone the current cell values to simulate updates.
+    // Simulate updates on a clone of the array
     let mut new_arr = arr.to_vec();
-
-    // Reset dependent cells in the clone.
+    // Reset only dependent cells
     for &cell in &sorted_cells {
         new_arr[cell as usize] = 0;
     }
 
-    // Iterate over the cells in topologically sorted order.
+    // Recompute in topologically sorted order
     for &cell in &sorted_cells {
         let f = formula_array[cell as usize];
-        if f.op_type == 0 {
-            // Simple constant assignment.
-            if f.p1 == std::i32::MIN {
-                new_arr[cell as usize] = std::i32::MIN;
-            } else {
-                new_arr[cell as usize] = f.p1;
+        match f.op_type {
+            0 => {
+                // Constant or direct assignment (including error sentinel)
+                new_arr[cell as usize] = if f.p1 == std::i32::MIN { std::i32::MIN } else { f.p1 };
             }
-        } else if (1..=4).contains(&f.op_type) {
-            // Arithmetic operation with constant second operand.
-            let v1 = new_arr[f.p1 as usize];
-            let v2 = f.p2;
-            if v1 == std::i32::MIN {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
-            }
-            let op = match f.op_type {
-                1 => '+',
-                2 => '-',
-                3 => '*',
-                4 => '/',
-                _ => unreachable!(),
-            };
-            if op == '/' && v2 == 0 {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
-            }
-            new_arr[cell as usize] = arith(v1, v2, Some(op));
-        } else if (5..=8).contains(&f.op_type) {
-            // Arithmetic operation using two cell references.
-            let v1 = new_arr[f.p1 as usize];
-            let v2 = new_arr[f.p2 as usize];
-            if f.op_type == 8 && v2 == 0 {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
-            }
-            if v1 == std::i32::MIN || v2 == std::i32::MIN {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
-            }
-            let op = match f.op_type {
-                5 => '+',
-                6 => '-',
-                7 => '*',
-                8 => '/',
-                _ => unreachable!(),
-            };
-            new_arr[cell as usize] = arith(v1, v2, Some(op));
-        } else if (9..=13).contains(&f.op_type) {
-            // Advanced functions: MIN, MAX, AVG, SUM, STDEV.
-            // We assume f.p1 and f.p2 denote the range start and end respectively.
-            let start = f.p1;
-            let end = f.p2;
-            let mut count = 0;
-            let mut sum = 0;
-            let mut min_value = std::i32::MAX;
-            let mut max_value = std::i32::MIN;
-            let mut sd_sum = 0.0;
-
-            // Iterate over the specified range.
-            for idx in start..=end {
-                let val = new_arr[idx as usize];
-                // Skip error cells (or you could choose to propagate error)
-                if val == std::i32::MIN {
+            1..=4 => {
+                // Arithmetic: one constant second operand
+                let v1 = new_arr[f.p1 as usize];
+                let v2 = f.p2;
+                if v1 == std::i32::MIN {
+                    new_arr[cell as usize] = std::i32::MIN;
                     continue;
                 }
-                count += 1;
-                sum += val;
-                if val < min_value {
-                    min_value = val;
-                }
-                if val > max_value {
-                    max_value = val;
+                let op = match f.op_type {
+                    1 => '+', 2 => '-', 3 => '*', 4 => '/', _ => unreachable!(),
+                };
+                if op == '/' && v2 == 0 {
+                    new_arr[cell as usize] = std::i32::MIN;
+                } else {
+                    new_arr[cell as usize] = arith(v1, v2, Some(op));
                 }
             }
-
-            if count == 0 {
-                new_arr[cell as usize] = std::i32::MIN;
-            } else {
-                match f.op_type {
-                    9  => { // MIN
-                        new_arr[cell as usize] = min_value;
-                    }
-                    10 => { // MAX
-                        new_arr[cell as usize] = max_value;
-                    }
-                    11 => { // AVG
-                        new_arr[cell as usize] = sum / count;
-                    }
-                    12 => { // SUM
-                        new_arr[cell as usize] = sum;
-                    }
-                    13 => { // STDEV
-                        let avg = sum as f64 / count as f64;
-                        for idx in start..=end {
-                            let val = new_arr[idx as usize] as f64;
-                            sd_sum += (val - avg).powi(2);
+            5..=8 => {
+                // Arithmetic: two cell operands
+                let v1 = new_arr[f.p1 as usize];
+                let v2 = new_arr[f.p2 as usize];
+                if v1 == std::i32::MIN || v2 == std::i32::MIN || (f.op_type == 8 && v2 == 0) {
+                    new_arr[cell as usize] = std::i32::MIN;
+                    continue;
+                }
+                let op = match f.op_type {
+                    5 => '+', 6 => '-', 7 => '*', 8 => '/', _ => unreachable!(),
+                };
+                new_arr[cell as usize] = arith(v1, v2, Some(op));
+            }
+            9..=13 => {
+                // Advanced functions: MIN, MAX, AVG, SUM, STDEV over a range
+                let start = f.p1 as usize;
+                let end = f.p2 as usize;
+                // Propagate error if any input in the range is ERR
+                if (start..=end).any(|i| new_arr[i] == std::i32::MIN) {
+                    new_arr[cell as usize] = std::i32::MIN;
+                    continue;
+                }
+                let mut count = 0;
+                let mut sum = 0;
+                let mut min_value = std::i32::MAX;
+                let mut max_value = std::i32::MIN;
+                for i in start..=end {
+                    let v = new_arr[i];
+                    count += 1;
+                    sum += v;
+                    if v < min_value { min_value = v; }
+                    if v > max_value { max_value = v; }
+                }
+                if count == 0 {
+                    new_arr[cell as usize] = std::i32::MIN;
+                } else {
+                    match f.op_type {
+                        9  => new_arr[cell as usize] = min_value,
+                        10 => new_arr[cell as usize] = max_value,
+                        11 => new_arr[cell as usize] = sum / count,
+                        12 => new_arr[cell as usize] = sum,
+                        13 => {
+                            let avg = sum as f64 / count as f64;
+                            let mut sd_acc = 0.0;
+                            for i in start..=end {
+                                let v = new_arr[i] as f64;
+                                sd_acc += (v - avg).powi(2);
+                            }
+                            new_arr[cell as usize] = (sd_acc / count as f64).sqrt() as i32;
                         }
-                        let stdev = (sd_sum / count as f64).sqrt();
-                        new_arr[cell as usize] = stdev as i32;
+                        _ => {}
                     }
-                    _  => { /* unreachable */ }
                 }
             }
-        } else if f.op_type == 14 {
-            // Sleep function: we simulate sleep by simply returning the sleep value.
-            let sleep_value = if f.p1 == cell { f.p2 } else { new_arr[f.p1 as usize] };
-            if sleep_value == std::i32::MIN || sleep_value <= 0 {
-                new_arr[cell as usize] = sleep_value;
-                continue;
+            14 => {
+                // Sleep: simply set to the stored value
+                let val = if f.p1 == cell { f.p2 } else { new_arr[f.p1 as usize] };
+                new_arr[cell as usize] = val;
             }
-            new_arr[cell as usize] = sleep_value;
+            _ => {}
         }
     }
 
-    // Commit the simulated results back to arr.
+    // Commit simulated results
     arr.copy_from_slice(&new_arr);
     true
 }

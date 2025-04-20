@@ -1,23 +1,17 @@
-# Build autograder binary with 'autograder' feature
-build:
-	cargo build --release --features autograder
-	mv target/release/cli target/release/sheet
+# ------------------------------------------------------------------------------
+# Makefile for autograder — builds ONLY the CLI (no WASM / web bits whatsoever)
+# ------------------------------------------------------------------------------
 
-# Run autograder binary with 100x100 grid
-run:
-	./target/release/sheet 100 100
+.PHONY: all build clean
 
-# Build and serve WASM extension with 'wasm' feature
-extension:
-	trunk build --features wasm
-	trunk serve --features wasm --open
-
-# Clean artifacts
-clean:
-	cargo clean
-	rm -f target/release/sheet
-
-# Default action (build autograder binary)
+# Default target, invoked by just “make”
 all: build
 
-.PHONY: all build run extension clean
+# Build only our CLI and call it “spreadsheet”
+build:
+	@cargo build --release --features autograder --bin spreadsheet
+
+# Clean up both Cargo‐built artifacts and our copied binary
+clean:
+	rm -f spreadsheet
+	cargo clean

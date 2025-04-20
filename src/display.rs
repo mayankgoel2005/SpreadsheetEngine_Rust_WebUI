@@ -125,8 +125,8 @@ fn column_index_to_name(mut col: usize) -> String {
     name
 }
 pub fn render_spreadsheet(
-    curr_x: usize,
-    curr_y: usize,
+    _curr_x: usize,
+    _curr_y: usize,
     arr: &[i32],
     cols: usize,
     rows: usize,

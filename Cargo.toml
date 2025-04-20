@@ -1,5 +1,5 @@
 [package]
-name = "lab1_2023CS10204_2023CS10076_2023CS10186"
+name = "lab1"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,7 +12,7 @@ autograder = []
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "cli"
+name = "spreadsheet"
 path = "src/bin/main.rs"
 required-features = ["autograder"]  # Only build CLI when autograder feature is enabled
 
