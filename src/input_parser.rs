@@ -162,7 +162,7 @@ fn arth_op(
     } else {
         (false, left_s)
     };
-    let left_is_cell = left_s.chars().next().map_or(false, is_alpha);
+    let left_is_cell = left_s.chars().next().is_some_and(is_alpha);
     let left_val = if left_is_cell {
         cell_parser(left_s, cols, rows)
     } else {
@@ -261,17 +261,17 @@ fn funct(
     farr:&mut [Formula],
 ) -> i32 {
     let ok = if txt[eq+1..].starts_with("MIN(") {
-        min_func(txt, cols, rows, eq, txt.len(), arr, g, farr)
+        min_func(txt, cols, rows, eq, arr, g, farr)
     } else if txt[eq+1..].starts_with("MAX(") {
-        max_func(txt, cols, rows, eq, txt.len(), arr, g, farr)
+        max_func(txt, cols, rows, eq, arr, g, farr)
     } else if txt[eq+1..].starts_with("AVG(") {
-        avg_func(txt, cols, rows, eq, txt.len(), arr, g, farr)
+        avg_func(txt, cols, rows, eq, arr, g, farr)
     } else if txt[eq+1..].starts_with("SUM(") {
-        sum_func(txt, cols, rows, eq, txt.len(), arr, g, farr)
+        sum_func(txt, cols, rows, eq, arr, g, farr)
     } else if txt[eq+1..].starts_with("STDEV(") {
-        standard_dev_func(txt, cols, rows, eq, txt.len(), arr, g, farr)
+        standard_dev_func(txt, cols, rows, eq, arr, g, farr)
     } else if txt[eq+1..].starts_with("SLEEP(") {
-        sleep_func(txt, cols, rows, eq, txt.len(), arr, g, farr)
+        sleep_func(txt, cols, rows, eq, arr, g, farr)
     } else {
         return 1;
     };
