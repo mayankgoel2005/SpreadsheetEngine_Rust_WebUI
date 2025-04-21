@@ -1,4 +1,4 @@
-use crate::graph::{Graph, create_graph, Formula};
+use crate::graph::{Graph, Formula};
 use crate::display::printer;
 
 pub struct Spreadsheet {
@@ -26,7 +26,7 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
         rows,
         cols,
         arr: vec![0; total_cells],
-        graph: create_graph(),
+        graph: Graph::new(rows*cols),
         formula_array: vec![
             Formula {
                 op_type: 0,

@@ -1,508 +1,305 @@
-use std::cell::RefCell;
-use std::cmp;
-use std::rc::Rc;
-use std::thread;
-use std::time::Duration;
-use crate::input_parser::HAS;
-const INT_MIN: i32 = i32::MIN;
-const INT_MAX: i32 = i32::MAX;
-const CELLS: usize = 18278000;
+// src/graph.rs
 
-#[derive(Debug)]
-pub struct QueueNode {
-    cell: i32,
-    next: Option<Rc<RefCell<QueueNode>>>,
-}
+use std::collections::VecDeque;
+use std::i32;
 
-#[derive(Debug)]
-pub struct Queue {
-    front: Option<Rc<RefCell<QueueNode>>>,
-    rear: Option<Rc<RefCell<QueueNode>>>,
-}
-
-impl Queue {
-    fn new() -> Self {
-        Queue {
-            front: None,
-            rear: None,
-        }
-    }
-
-    fn enqueue(&mut self, cell: i32) {
-        let new_node = Rc::new(RefCell::new(QueueNode { cell, next: None }));
-        if self.rear.is_none() {
-            self.front = Some(Rc::clone(&new_node));
-            self.rear = Some(new_node);
-        } else {
-            if let Some(rear) = self.rear.take() {
-                rear.borrow_mut().next = Some(Rc::clone(&new_node));
-                self.rear = Some(new_node);
-            }
-        }
-    }
-
-    fn dequeue(&mut self) -> Option<i32> {
-        if let Some(front) = self.front.take() {
-            let result = front.borrow().cell;
-            self.front = front.borrow_mut().next.take();
-            if self.front.is_none() {
-                self.rear = None;
-            }
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-fn get_nodes_from_avl(root: Option<&Box<Cell>>, nodes: &mut Vec<i32>) {
-    if let Some(node) = root {
-        get_nodes_from_avl(node.left.as_ref(), nodes);
-        nodes.push(node.cell);
-        get_nodes_from_avl(node.right.as_ref(), nodes);
-    }
-}
-
+/// A recorded formula:
+///  op_type:
+///    0 = constant
+///    1–4  = "cell ±/* literal"
+///    5–8  = "cell ±/* cell"
+///    9–13 = MIN,MAX,AVG,SUM,STDEV over a range [p1..p2]
+///    14    = SLEEP
 #[derive(Copy, Clone, Debug)]
 pub struct Formula {
     pub op_type: i32,
-    pub p1: i32,
-    pub p2: i32,
+    pub p1:     i32,
+    pub p2:     i32,
 }
 
-#[derive(Debug, Clone)]
-pub struct Cell {
-    cell: i32,
-    height: i32,
-    left: Option<Box<Cell>>,
-    right: Option<Box<Cell>>,
-}
-
+/// A very simple adjacency list: for each cell index, a Vec of its dependents.
 pub struct Graph {
-    pub adj: Vec<Option<Box<Cell>>>,
+    pub adj: Vec<Vec<usize>>,
 }
 
 impl Graph {
-    pub fn new() -> Self {
-        Graph {
-            adj: vec![None; 1000],
-        }
+    /// Create a new graph for `size` cells (0..size-1).
+    pub fn new(size: usize) -> Self {
+        Graph { adj: vec![Vec::new(); size] }
     }
 }
 
-pub fn add_formula(_graph: &mut Graph, cell: i32, p1: i32, p2: i32, op_type: i32, formula_list: &mut [Formula]) {
-    let f = if op_type == 0 {
-        Formula {
-            op_type,
-            p1,
-            p2: -1,
+/// Record a new formula in `formula_array[cell]` and install its dependency edges.
+pub fn add_formula(
+    graph:          &mut Graph,
+    cell:           usize,
+    p1:             i32,
+    p2:             i32,
+    op_type:        i32,
+    formula_array:  &mut [Formula],
+    cols: usize,
+) {
+    formula_array[cell] = Formula { op_type, p1, p2 };
+    match op_type {
+        1..=4 => {
+            let src = p1 as usize;
+            graph.adj[src].push(cell);
         }
-    } else {
-        Formula {
-            op_type,
-            p1,
-            p2,
+        5..=8 => {
+            let s1 = p1 as usize;
+            let s2 = p2 as usize;
+            graph.adj[s1].push(cell);
+            graph.adj[s2].push(cell);
         }
-    };
-    formula_list[cell as usize] = f;
-}
+        9..=13 => {
+            let start = p1 as usize;
+            let end   = p2 as usize;
+            let (sr, sc) = (start / cols as usize, start % cols as usize);
+            let (er, ec) = (  end / cols as usize,   end % cols as usize);
 
-fn height(cell: Option<&Box<Cell>>) -> i32 {
-    cell.map_or(0, |c| c.height)
-}
+            // reject true rectangles
+            if sr != er && sc != ec { return; }
 
-fn balance(cell: Option<&Box<Cell>>) -> i32 {
-    cell.map_or(0, |c| height(c.left.as_ref()) - height(c.right.as_ref()))
-}
-
-fn right_rotate(mut cell: Box<Cell>) -> Box<Cell> {
-    let mut x = cell.left.take().expect("left child must exist for rotation");
-    let t2 = x.right.take();
-    x.right = Some(cell);
-    x.right.as_mut().unwrap().left = t2;
-    let right = x.right.as_mut().unwrap();
-    right.height = 1 + cmp::max(height(right.left.as_ref()), height(right.right.as_ref()));
-    x.height = 1 + cmp::max(height(x.left.as_ref()), height(x.right.as_ref()));
-    x
-}
-
-fn left_rotate(mut cell: Box<Cell>) -> Box<Cell> {
-    let mut x = cell.right.take().expect("right child must exist for rotation");
-    let t2 = x.left.take();
-    x.left = Some(cell);
-    x.left.as_mut().unwrap().right = t2;
-    let left = x.left.as_mut().unwrap();
-    left.height = 1 + cmp::max(height(left.left.as_ref()), height(left.right.as_ref()));
-    x.height = 1 + cmp::max(height(x.left.as_ref()), height(x.right.as_ref()));
-    x
-}
-
-pub fn add_cell(cell: i32) -> Box<Cell> {
-    Box::new(Cell {
-        cell,
-        left: None,
-        right: None,
-        height: 1,
-    })
-}
-
-pub fn create_graph() -> Graph {
-    Graph {
-        adj: vec![None; CELLS],
-    }
-}
-
-pub fn add_edge(cell1: i32, x: Option<Box<Cell>>) -> Box<Cell> {
-    match x {
-        None => add_cell(cell1),
-        Some(mut node) => {
-            if cell1 < node.cell {
-                node.left = Some(add_edge(cell1, node.left));
-            } else if cell1 > node.cell {
-                node.right = Some(add_edge(cell1, node.right));
+            if sc == ec {
+                // vertical
+                for r in sr..=er {
+                    let src = r * cols as usize + sc;
+                    if src == cell { continue; }
+                    graph.adj[src].push(cell);
+                }
             } else {
-                return node;
+                // horizontal
+                for c in sc..=ec {
+                    let src = sr * cols as usize + c;
+                    if src == cell { continue; }
+                    graph.adj[src].push(cell);
+                }
             }
-            node.height = 1 + cmp::max(height(node.left.as_ref()), height(node.right.as_ref()));
-
-            let bal = balance(Some(&node));
-            if bal > 1 && cell1 < node.left.as_ref().unwrap().cell {
-                return right_rotate(node);
-            }
-            if bal < -1 && cell1 > node.right.as_ref().unwrap().cell {
-                return left_rotate(node);
-            }
-            if bal > 1 && cell1 > node.left.as_ref().unwrap().cell {
-                node.left = Some(left_rotate(node.left.take().unwrap()));
-                return right_rotate(node);
-            }
-            if bal < -1 && cell1 < node.right.as_ref().unwrap().cell {
-                node.right = Some(right_rotate(node.right.take().unwrap()));
-                return left_rotate(node);
-            }
-            node
         }
+        _ => {}
     }
 }
 
-pub fn delete_cell(cell1: i32, x: Option<Box<Cell>>) -> Option<Box<Cell>> {
-    match x {
-        None => None,
-        Some(mut node) => {
-            if cell1 < node.cell {
-                node.left = delete_cell(cell1, node.left);
-            } else if cell1 > node.cell {
-                node.right = delete_cell(cell1, node.right);
+/// Remove the old edges for whatever formula was in `formula_array[cell]`.
+pub fn delete_edge(
+    graph:         &mut Graph,
+    cell:          usize,
+    formula_array: &[Formula],
+    cols:          usize,
+) {
+    let f = formula_array[cell];
+    match f.op_type {
+        1..=4 => {
+            let src = f.p1 as usize;
+            graph.adj[src].retain(|&d| d != cell);
+        }
+        5..=8 => {
+            let s1 = f.p1 as usize;
+            let s2 = f.p2 as usize;
+            graph.adj[s1].retain(|&d| d != cell);
+            graph.adj[s2].retain(|&d| d != cell);
+        }
+        9..=13 => {
+            let start = f.p1 as usize;
+            let end   = f.p2 as usize;
+            let (sr, sc) = (start / cols as usize, start % cols as usize);
+            let (er, ec) = (  end / cols as usize,   end % cols as usize);
+
+            if sc == ec {
+                // vertical
+                for r in sr..=er {
+                    let src = r * cols as usize + sc;
+                    if src == cell { continue; }
+                    graph.adj[src].push(cell);
+                }
             } else {
-                if node.left.is_none() || node.right.is_none() {
-                    return if node.left.is_some() {
-                        node.left.take()
-                    } else {
-                        node.right.take()
-                    };
-                } else {
-                    let min_val = {
-                        let mut current = node.right.as_ref().unwrap();
-                        while let Some(ref left) = current.left {
-                            current = left;
-                        }
-                        current.cell
-                    };
-                    node.cell = min_val;
-                    node.right = delete_cell(min_val, node.right);
-                }
-            }
-            node.height = 1 + cmp::max(height(node.left.as_ref()), height(node.right.as_ref()));
-            let bal = balance(Some(&node));
-            if bal > 1 && balance(node.left.as_ref()) >= 0 {
-                return Some(right_rotate(node));
-            }
-            if bal > 1 && balance(node.left.as_ref()) < 0 {
-                node.left = Some(left_rotate(node.left.take().unwrap()));
-                return Some(right_rotate(node));
-            }
-            if bal < -1 && balance(node.right.as_ref()) <= 0 {
-                return Some(left_rotate(node));
-            }
-            if bal < -1 && balance(node.right.as_ref()) > 0 {
-                node.right = Some(right_rotate(node.right.take().unwrap()));
-                return Some(left_rotate(node));
-            }
-            Some(node)
-        }
-    }
-}
-
-pub fn delete_edge(graph: &mut Graph, cell: i32, cols: i32, formula_list: &[Formula]) {
-    let f = formula_list[cell as usize];
-    if (1..=4).contains(&f.op_type) {
-        graph.adj[f.p1 as usize] = delete_cell(cell, graph.adj[f.p1 as usize].take());
-    } else if (5..=8).contains(&f.op_type) {
-        graph.adj[f.p1 as usize] = delete_cell(cell, graph.adj[f.p1 as usize].take());
-        graph.adj[f.p2 as usize] = delete_cell(cell, graph.adj[f.p2 as usize].take());
-    } else if (9..=13).contains(&f.op_type) {
-        let start = f.p1;
-        let end = f.p2;
-        let start_row = start / cols;
-        let end_row = end / cols;
-        let start_col = start % cols;
-        let end_col = end % cols;
-        for i in start_row..=end_row {
-            for j in start_col..=end_col {
-                let index = (i * cols + j) as usize;
-                graph.adj[index] = delete_cell(cell, graph.adj[index].take());
-            }
-        }
-    }
-}
-
-pub fn add_edge_formula(graph: &mut Graph, cell: i32, cols: i32, formula_array: &[Formula]) {
-    let x = formula_array[cell as usize];
-    if (1..=4).contains(&x.op_type) {
-        graph.adj[x.p1 as usize] =
-            Some(add_edge(cell, graph.adj[x.p1 as usize].take()));
-    } else if (5..=8).contains(&x.op_type) {
-        graph.adj[x.p1 as usize] =
-            Some(add_edge(cell, graph.adj[x.p1 as usize].take()));
-        graph.adj[x.p2 as usize] =
-            Some(add_edge(cell, graph.adj[x.p2 as usize].take()));
-    } else if (9..=13).contains(&x.op_type) {
-        let start_cell = x.p1;
-        let end_cell = x.p2;
-        let start_row = start_cell / cols;
-        let start_col = start_cell % cols;
-        let end_row = end_cell / cols;
-        let end_col = end_cell % cols;
-        for row in start_row..=end_row {
-            for col in start_col..=end_col {
-                let target_cell = row * cols + col;
-                graph.adj[target_cell as usize] =
-                    Some(add_edge(cell, graph.adj[target_cell as usize].take()));
-            }
-        }
-    }
-}
-
-pub fn topological_sort(
-    graph: &mut Graph,
-    start: i32,
-    size: &mut i32,
-    has_cycle: &mut i32,
-) -> Option<Vec<i32>> {
-    *size = 0;
-    *has_cycle = 0;
-    let mut num_reachable = 0;
-    let mut result: Vec<i32> = Vec::with_capacity(CELLS);
-    let mut in_degree = vec![0; CELLS];
-    let mut reachable = vec![0; CELLS];
-    let mut q = Queue::new();
-    let mut vis = Queue::new();
-    vis.enqueue(start);
-    reachable[start as usize] = 1;
-    num_reachable += 1;
-
-    while vis.front.is_some() {
-        let cur = vis.dequeue().unwrap();
-        if let Some(ref avl) = graph.adj[cur as usize] {
-            let mut nodes = Vec::new();
-            get_nodes_from_avl(Some(avl), &mut nodes);
-            for &dep in &nodes {
-                in_degree[dep as usize] += 1;
-                if reachable[dep as usize] == 0 {
-                    reachable[dep as usize] = 1;
-                    num_reachable += 1;
-                    vis.enqueue(dep);
+                // horizontal
+                for c in sc..=ec {
+                    let src = sr * cols as usize + c;
+                    if src == cell { continue; }
+                    graph.adj[src].push(cell);
                 }
             }
         }
+        _ => {}
     }
-    if in_degree[start as usize] > 0 {
-        println!("Cycle detected");
-        return None;
-    }
-    q.enqueue(start);
-    while q.front.is_some() {
-        let cur = q.dequeue().unwrap();
-        result.push(cur);
-        if let Some(ref avl) = graph.adj[cur as usize] {
-            let mut nodes = Vec::new();
-            get_nodes_from_avl(Some(avl), &mut nodes);
-            for &dep in &nodes {
-                in_degree[dep as usize] -= 1;
-                if in_degree[dep as usize] == 0 {
-                    q.enqueue(dep);
-                }
-            }
-        }
-    }
-    *size = result.len() as i32;
-    if *size < num_reachable {
-        *has_cycle = 1;
-        return None;
-    }
-    Some(result)
 }
 
-pub fn arith(v1: i32, v2: i32, op: Option<char>) -> i32 {
+#[inline]
+pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
     match op {
-        Some('+') => v1 + v2,
-        Some('-') => v1 - v2,
-        Some('*') => v1 * v2,
-        Some('/') => {
-            if v2 != 0 {
-                v1 / v2
-            } else {
-                INT_MIN
-            }
-        }
-        _ => INT_MIN,
+        '+' => v1.wrapping_add(v2),
+        '-' => v1.wrapping_sub(v2),
+        '*' => v1.wrapping_mul(v2),
+        '/' => if v2 != 0 { v1 / v2 } else { i32::MIN },
+        _   => i32::MIN,
     }
 }
 
-pub fn recalculate(
-    graph: &mut Graph,
-    cols: i32,
-    arr: &mut [i32],
-    start_cell: i32,
-    formula_array: &[Formula]
-) -> bool {
-    // Attempt a topological sort starting at `start_cell`
-    let mut size = 0;
-    let mut has_cycle = 0;
-    let sorted_cells = match topological_sort(graph, start_cell, &mut size, &mut has_cycle) {
-        Some(v) => v,
-        None => {
-            println!("Error: Circular dependency detected. Command rejected.");
-            return false;
+/// Kahn’s algorithm over the **reachable** subgraph starting at `start`.
+/// Returns `None` if a cycle is found; otherwise the topo order.
+pub fn topological_sort(
+    graph:      &Graph,
+    start:      usize,
+    total_size: usize,
+) -> Option<Vec<usize>> {
+    // 1) BFS to mark reachable & count in‑degrees
+    let mut in_degree = vec![0; total_size];
+    let mut reachable = vec![false; total_size];
+    let mut queue     = VecDeque::new();
+    reachable[start] = true;
+    let mut reach=1;
+    queue.push_back(start);
+    while let Some(u) = queue.pop_front() {
+        for &v in &graph.adj[u] {
+            in_degree[v] += 1;
+            if !reachable[v] {
+                reachable[v] = true;
+                reach+=1;
+                queue.push_back(v);
+            }
         }
+    }
+
+    // 2) Kahn’s zero‑queue
+    let mut zero   = VecDeque::new();
+    let mut result = Vec::new();
+    zero.push_back(start);
+    while let Some(u) = zero.pop_front() {
+        result.push(u);
+        for &v in &graph.adj[u] {
+            in_degree[v] -= 1;
+            if in_degree[v] == 0 {
+                zero.push_back(v);
+            }
+        }
+    }
+    if result.len() != reach{
+        // cycle among the reachable nodes
+        None
+    } else {
+        Some(result)
+    }
+}
+
+/// Recalculate all formulas downstream of `start_cell` into `arr`.
+/// If a cycle is detected, returns `false` and leaves `arr` untouched.
+pub fn recalculate(
+    graph:          &mut Graph,
+    cols:           i32,
+    arr:            &mut [i32],
+    start_cell:     usize,
+    formula_array:  &[Formula],
+) -> bool {
+    let total_size = arr.len();
+    let sorted = match topological_sort(graph, start_cell, total_size) {
+        Some(v) => v,
+        None    => return false,
     };
 
-    // Clone the current cell values to simulate updates.
-    let mut new_arr = arr.to_vec();
-
-    // Reset dependent cells in the clone.
-    for &cell in &sorted_cells {
-        new_arr[cell as usize] = 0;
+    // make a working copy & zero out all dependents
+    for &c in &sorted {
+        arr[c] = 0;
     }
 
-    // Iterate over the cells in topologically sorted order.
-    for &cell in &sorted_cells {
-        let f = formula_array[cell as usize];
-        if f.op_type == 0 {
-            // Simple constant assignment.
-            if f.p1 == std::i32::MIN {
-                new_arr[cell as usize] = std::i32::MIN;
-            } else {
-                new_arr[cell as usize] = f.p1;
+    // now re‑evaluate in topo order
+    for &c in &sorted {
+        let f = formula_array[c];
+        match f.op_type {
+            0 => {
+                // constant / direct value
+                arr[c] = if f.p1 == i32::MIN { i32::MIN } else { f.p1 };
             }
-        } else if (1..=4).contains(&f.op_type) {
-            // Arithmetic operation with constant second operand.
-            let v1 = new_arr[f.p1 as usize];
-            let v2 = f.p2;
-            if v1 == std::i32::MIN {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
+            1..=4 => {
+                let v1 = arr[f.p1 as usize];
+                let v2 = f.p2;
+                if v1 == i32::MIN {
+                    arr[c] = i32::MIN;
+                } else {
+                    let op = match f.op_type { 1 => '+', 2 => '-', 3 => '*', 4 => '/', _ => '+' };
+                    arr[c] = if op == '/' && v2 == 0 {
+                        i32::MIN
+                    } else {
+                        arith(v1, v2, op)
+                    };
+                }
             }
-            let op = match f.op_type {
-                1 => '+',
-                2 => '-',
-                3 => '*',
-                4 => '/',
-                _ => unreachable!(),
-            };
-            if op == '/' && v2 == 0 {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
+            5..=8 => {
+                let v1 = arr[f.p1 as usize];
+                let v2 = arr[f.p2 as usize];
+                if v1 == i32::MIN || v2 == i32::MIN {
+                    arr[c] = i32::MIN;
+                } else {
+                    let op = match f.op_type { 5 => '+', 6 => '-', 7 => '*', 8 => '/', _ => '+' };
+                    arr[c] = if op == '/' && v2 == 0 {
+                        i32::MIN
+                    } else {
+                        arith(v1, v2, op)
+                    };
+                }
             }
-            new_arr[cell as usize] = arith(v1, v2, Some(op));
-        } else if (5..=8).contains(&f.op_type) {
-            // Arithmetic operation using two cell references.
-            let v1 = new_arr[f.p1 as usize];
-            let v2 = new_arr[f.p2 as usize];
-            if f.op_type == 8 && v2 == 0 {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
-            }
-            if v1 == std::i32::MIN || v2 == std::i32::MIN {
-                new_arr[cell as usize] = std::i32::MIN;
-                continue;
-            }
-            let op = match f.op_type {
-                5 => '+',
-                6 => '-',
-                7 => '*',
-                8 => '/',
-                _ => unreachable!(),
-            };
-            new_arr[cell as usize] = arith(v1, v2, Some(op));
-        } else if (9..=13).contains(&f.op_type) {
-            // Advanced functions: MIN, MAX, AVG, SUM, STDEV.
-            // We assume f.p1 and f.p2 denote the range start and end respectively.
-            let start = f.p1;
-            let end = f.p2;
-            let mut count = 0;
-            let mut sum = 0;
-            let mut min_value = std::i32::MAX;
-            let mut max_value = std::i32::MIN;
-            let mut sd_sum = 0.0;
+            9..=13 => {
+                // ranges
+                let start = f.p1 as usize;
+                let end   = f.p2 as usize;
+                let sr = start / cols as usize;
+                let sc = start % cols as usize;
+                let er = end   / cols as usize;
+                let ec = end   % cols as usize;
 
-            // Iterate over the specified range.
-            for idx in start..=end {
-                let val = new_arr[idx as usize];
-                // Skip error cells (or you could choose to propagate error)
-                if val == std::i32::MIN {
-                    continue;
-                }
-                count += 1;
-                sum += val;
-                if val < min_value {
-                    min_value = val;
-                }
-                if val > max_value {
-                    max_value = val;
-                }
-            }
+                let mut cnt = 0;
+                let mut sum = 0;
+                let mut mn  = i32::MAX;
+                let mut mx  = i32::MIN;
+                let mut sd_acc = 0.0;
+                let mut err = false;
 
-            if count == 0 {
-                new_arr[cell as usize] = std::i32::MIN;
-            } else {
-                match f.op_type {
-                    9  => { // MIN
-                        new_arr[cell as usize] = min_value;
+                for r in sr..=er {
+                    for col in sc..=ec {
+                        let idx = r * cols as usize + col;
+                        let v   = arr[idx];
+                        if v == i32::MIN { err = true }
+                        cnt += 1;
+                        sum += v;
+                        mn = mn.min(v);
+                        mx = mx.max(v);
                     }
-                    10 => { // MAX
-                        new_arr[cell as usize] = max_value;
-                    }
-                    11 => { // AVG
-                        new_arr[cell as usize] = sum / count;
-                    }
-                    12 => { // SUM
-                        new_arr[cell as usize] = sum;
-                    }
-                    13 => { // STDEV
-                        let avg = sum as f64 / count as f64;
-                        for idx in start..=end {
-                            let val = new_arr[idx as usize] as f64;
-                            sd_sum += (val - avg).powi(2);
+                }
+
+                if err || cnt == 0 {
+                    arr[c] = i32::MIN;
+                } else {
+                    arr[c] = match f.op_type {
+                        9  => mn,
+                        10 => mx,
+                        11 => sum / cnt,
+                        12 => sum,
+                        13 => {
+                            let avg = sum as f64 / cnt as f64;
+                            for r in sr..=er {
+                                for col in sc..=ec {
+                                    let idx = r * cols as usize + col;
+                                    let d   = arr[idx] as f64 - avg;
+                                    sd_acc += d * d;
+                                }
+                            }
+                            (sd_acc / cnt as f64).sqrt() as i32
                         }
-                        let stdev = (sd_sum / count as f64).sqrt();
-                        new_arr[cell as usize] = stdev as i32;
-                    }
-                    _  => { /* unreachable */ }
+                        _ => unreachable!(),
+                    };
                 }
             }
-        } else if f.op_type == 14 {
-            // Sleep function: we simulate sleep by simply returning the sleep value.
-            let sleep_value = if f.p1 == cell { f.p2 } else { new_arr[f.p1 as usize] };
-            if sleep_value == std::i32::MIN || sleep_value <= 0 {
-                new_arr[cell as usize] = sleep_value;
-                continue;
+            14 => {
+                // Sleep / passthrough
+                let val = if f.p1 as usize == c {
+                    f.p2
+                } else {
+                    arr[f.p1 as usize]
+                };
+                arr[c] = val;
             }
-            new_arr[cell as usize] = sleep_value;
+            _ => {}
         }
     }
-
-    // Commit the simulated results back to arr.
-    arr.copy_from_slice(&new_arr);
     true
 }
