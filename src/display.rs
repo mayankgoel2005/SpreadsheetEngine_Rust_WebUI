@@ -90,7 +90,7 @@ pub fn scroller_display(
         }
     } else if cmd.starts_with("scroll_to ") {
         // Extract the cell reference part (from index 10 to end)
-        let cell = cell_parser(cmd, cols as i32, rows as i32, 10, (cmd.len() - 1) as i32, graph);
+        let cell = cell_parser(cmd, cols as i32, rows as i32);
         if cell == -1 {
             flag = true;
         } else {

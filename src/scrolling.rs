@@ -18,9 +18,6 @@ pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) {
             cell,
             spreadsheet.cols as i32,
             spreadsheet.rows as i32,
-            0,
-            (cell.len() as i32) - 1,
-            &mut spreadsheet.graph,
         );
         if idx >= 0 {
             let idx = idx as usize;
