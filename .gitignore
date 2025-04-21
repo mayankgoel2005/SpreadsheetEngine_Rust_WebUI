@@ -3,3 +3,4 @@
 .vscodetarget/
 dist/
 *.wasm
+target
