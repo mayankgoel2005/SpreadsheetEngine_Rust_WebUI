@@ -313,7 +313,7 @@ pub fn topological_sort(
         }
     }
     if in_degree[start as usize] > 0 {
-        println!("Cycle detected");
+        //println!("Cycle detected");
         return None;
     }
     q.enqueue(start);
@@ -368,7 +368,7 @@ pub fn recalculate(
     let sorted_cells = match topological_sort(graph, start_cell, &mut size, &mut has_cycle) {
         Some(v) => v,
         None => {
-            println!("Error: Circular dependency detected. Command rejected.");
+            //println!("Error: Circular dependency detected. Command rejected.");
             return false;
         }
     };

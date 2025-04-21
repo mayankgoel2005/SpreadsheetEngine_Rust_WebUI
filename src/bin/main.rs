@@ -69,7 +69,8 @@ fn main() {
 
         if trimmed == "disable_output" {
             spreadsheet.output_disabled = true;
-            println!("[{:.1}] (Output disabled)", cmd_start.elapsed().as_secs_f64());
+            print!("[{:.1}] (ok) > ", cmd_start.elapsed().as_secs_f64());
+            io::stdout().flush().unwrap();
         } else if trimmed == "enable_output" {
             spreadsheet.output_disabled = false;
             display::printer(
@@ -79,7 +80,8 @@ fn main() {
                 spreadsheet.cols,
                 spreadsheet.rows,
             );
-            println!("[{:.1}] (Output enabled)", cmd_start.elapsed().as_secs_f64());
+            print!("[{:.1}] (ok) > ", cmd_start.elapsed().as_secs_f64());
+            io::stdout().flush().unwrap();
         } else {
             if trimmed == "w"
                 || trimmed == "a"
@@ -108,7 +110,7 @@ fn main() {
             if status != 1 {
                 print!("[{:.1}] (ok) > ", elapsed);
             } else {
-                print!("[{:.1}] (unrecognized command) > ", elapsed);
+                print!("[{:.1}] (err) > ", elapsed);
             }
             io::stdout().flush().unwrap();
         }

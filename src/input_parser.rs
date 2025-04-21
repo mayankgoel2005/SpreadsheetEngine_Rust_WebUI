@@ -127,7 +127,8 @@ fn value_func(
     }
 
     // Distinguish literal number vs. cell reference.
-    if is_digit(x) {
+    let next_char = formula[(pos_eq+1) as usize..].chars().next().unwrap();
+    if is_digit(next_char) {
         // Numeric literal.
         let tmp = formula[(pos_eq + 1) as usize..].trim();
 
@@ -506,26 +507,26 @@ fn funct(
         //println!("Invalid range: Missing or misplaced parentheses\n");
         return 1;
     }
-
+    let mut flag=true;
     let idx_open = pos_equal + open_paren1.unwrap() as i32;
     if idx_open - pos_equal >= 3 {
         // For functions with names of fixed length.
         if idx_open - pos_equal - 1 == 5 {
             if formula[(pos_equal + 1) as usize..].starts_with("STDEV") {
-                standard_dev_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                flag=standard_dev_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("SLEEP") {
-                sleep_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                flag=sleep_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             }
         } else if idx_open - pos_equal - 1 == 3 {
             if formula[(pos_equal + 1) as usize..].starts_with("MIN") {
-                min_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                flag=min_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("MAX") {
                 //println!("hey");
-                max_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                flag=max_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("AVG") {
-                avg_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                flag=avg_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else if formula[(pos_equal + 1) as usize..].starts_with("SUM") {
-                sum_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
+                flag=sum_func(formula, c, r, pos_equal as usize, pos_end as usize, arr, graph, formula_array);
             } else {
                 //println!("Invalid function\n");
                 return 1;
@@ -538,7 +539,9 @@ fn funct(
         //println!("Invalid function\n");
         return 1;
     }
-
+    if !flag {
+        return 1;
+    }
     let b = recalculate(graph, c, arr, first, formula_array);
     if !b {
         //println!("Formula rejected due to circular dependency. Reverting changes.");
@@ -619,7 +622,7 @@ pub fn parser(spreadsheet: &mut Spreadsheet, formula: &str) -> i32 {
     }
     if func == 1 && arth_exp == 1 {
         //println!("Invalid input: can't be both function and arithmetic\n");
-        return -1;
+        return 1;
     }
     if func == 0 && arth_exp == 0 {
         value = 1;
