@@ -11,8 +11,8 @@ static mut OLD_P1:      i32 = 0;
 static mut OLD_P2:      i32 = 0;
 pub   static mut HAS:   i32 = 0;
 
-#[inline] fn is_alpha(c: char) -> bool { c >= 'A' && c <= 'Z' }
-#[inline] fn is_digit(c: char) -> bool { c >= '0' && c <= '9' }
+#[inline] fn is_alpha(c: char) -> bool { c.is_ascii_uppercase() }
+#[inline] fn is_digit(c: char) -> bool { c.is_ascii_digit() }
 
 /// Mark `dst` dependent on `src` (no duplicates).
 #[inline]
@@ -20,7 +20,7 @@ fn depend(g: &mut Graph, src: usize, dst: usize) {
     g.adj[src].push(dst);
 }
 
-/// A1 → 0,0;  B3 → col=B (1)*,row=3 (2) → index = row*cols+col
+/// A1 → 0,0; B3 → col=B (1)*,row=3 (2) → index = row*cols+col
 pub fn cell_parser(s: &str, cols: i32, rows: i32) -> i32 {
     let mut col = 0;
     let mut row = 0;
@@ -83,7 +83,7 @@ fn value_func(
     }
 
     /* handle optional sign */
-    let mut it = (eq + 1) as usize;
+    let mut it = eq + 1;
     let mut neg = false;
     let bytes = txt.as_bytes();
     if bytes[it] == b'-' || bytes[it] == b'+' {
@@ -92,7 +92,7 @@ fn value_func(
     }
 
     let rhs = txt[it..].trim();
-    let is_cell = rhs.bytes().next().map(|b| (b'A'..=b'Z').contains(&b)).unwrap_or(false);
+    let is_cell = rhs.bytes().next().map(|b: u8| b.is_ascii_uppercase()).unwrap_or(false);
 
     let val;
     if is_cell {
@@ -155,37 +155,36 @@ fn arth_op(
     let right_s = txt[op_ind+1..].trim();
 
     // parse left
-    let (lneg, left_s) = if left_s.starts_with('-') {
-        (true,  left_s[1..].trim())
-    } else if left_s.starts_with('+') {
-        (false, left_s[1..].trim())
+    let (lneg, left_s) = if let Some(stripped) = left_s.strip_prefix('-') {
+        (true, stripped.trim())
+    } else if let Some(stripped) = left_s.strip_prefix('+') {
+        (false, stripped.trim())
     } else {
         (false, left_s)
     };
-    let left_is_cell = left_s.chars().next().map_or(false, |c| is_alpha(c));
+    let left_is_cell = left_s.chars().next().map_or(false, is_alpha);
     let left_val = if left_is_cell {
         cell_parser(left_s, cols, rows)
     } else {
-        left_s.parse::<i32>().map(|v| v as i32).unwrap_or(i32::MIN)
+        left_s.parse::<i32>().unwrap_or(i32::MIN)
     };
-    if left_val == i32::MIN || (!left_is_cell && left_val == i32::MIN) { return 1 }
+    if left_val == i32::MIN  { return 1 }
     let left_val = if lneg { -left_val } else { left_val };
 
     // parse right
-    let (rneg, right_s) = if right_s.starts_with('-') {
-        (true,  right_s[1..].trim())
-    } else if right_s.starts_with('+') {
-        (false, right_s[1..].trim())
+    let (rneg, right_s) = if let Some(stripped) = right_s.strip_prefix('-') {
+        (true, stripped.trim())
+    } else if let Some(stripped) = right_s.strip_prefix('+') {
+        (false, stripped.trim())
     } else {
         (false, right_s)
     };
-    let right_is_cell = right_s.chars().next().map_or(false, |c| is_alpha(c));
-    let right_val = if right_is_cell {
+    let right_is_cell = right_s.chars().next().is_some_and(is_alpha);    let right_val = if right_is_cell {
         cell_parser(right_s, cols, rows)
     } else {
-        right_s.parse::<i32>().map(|v| v as i32).unwrap_or(i32::MIN)
+        right_s.parse::<i32>().unwrap_or(i32::MIN)
     };
-    if right_val == i32::MIN || (!right_is_cell && right_val == i32::MIN) { return 1 }
+    if right_val == i32::MIN { return 1 }
     let right_val = if rneg { -right_val } else { right_val };
 
     // dst
@@ -211,20 +210,20 @@ fn arth_op(
     let base_op = return_optype(op_ch);
     let (p1, p2, op_type) = match (left_is_cell, right_is_cell) {
         (true,  true ) => {
-            let p1 = left_val.abs()  as i32; // left index stored
-            let p2 = right_val.abs() as i32;
+            let p1 = left_val.abs() ; // left index stored
+            let p2 = right_val.abs() ;
             depend(g, p1 as usize, dst);
             depend(g, p2 as usize, dst);
             (p1, p2, base_op + 4)       // cell+cell => ops 5..8
         }
         (true,  false) => {
-            let p1 = left_val.abs() as i32;
+            let p1 = left_val.abs() ;
             let p2 = right_val;
             depend(g, p1 as usize, dst);
             (p1, p2, base_op)           // cell+lit => ops 1..4
         }
         (false, true ) => {
-            let p1 = right_val.abs() as i32;
+            let p1 = right_val.abs() ;
             let p2 = left_val;
             depend(g, p1 as usize, dst);
             (p1, p2, base_op + 4)       // lit+cell treat as cell+cell
@@ -276,7 +275,7 @@ fn funct(
     } else {
         return 1;
     };
-    if ok != true { return 1 }
+    if !ok { return 1 }
     // re‐run recalc on dst
     let dst = cell_parser(&txt[..eq], cols, rows) as usize;
     if !recalculate(g, cols, arr, dst, farr) {

@@ -1,5 +1,4 @@
 use std::cmp;
-use std::i32;
 use crate::graph::{Graph};
 use crate::input_parser::cell_parser;
 
@@ -136,7 +135,7 @@ pub fn render_spreadsheet(
     // Wrap the table inside a scrollable div with fixed width and height
     output.push_str(r#"
         <div id="scroll-container" 
-             style="max-width: 1020px; max-height: 600px; overflow: auto; border: 1px solid #ccc;">
+             style="max-width: 1020 px; max-height: 600 px; overflow: auto; border: 1 px solid #ccc;">
     "#);
 
     // Start the table
@@ -158,7 +157,7 @@ pub fn render_spreadsheet(
         for col in 0..cols {
             let index = row * cols + col;
             let cell_label = format!("{}{}", column_index_to_name(col), row_num);
-            let cell_value = if arr[index] == std::i32::MIN {
+            let cell_value = if arr[index] == i32::MIN {
                 "ERR".to_string()
             } else {
                 arr[index].to_string()

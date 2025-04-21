@@ -1,5 +1,5 @@
 // src/functions.rs
-use std::{i32, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use crate::graph::{Graph, Formula, add_formula};
 use crate::input_parser::cell_parser;

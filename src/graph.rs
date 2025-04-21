@@ -1,15 +1,15 @@
 // src/graph.rs
 
 use std::collections::VecDeque;
-use std::i32;
+// use std::i32;
 
 /// A recorded formula:
 ///  op_type:
 ///    0 = constant
-///    1–4  = "cell ±/* literal"
-///    5–8  = "cell ±/* cell"
-///    9–13 = MIN,MAX,AVG,SUM,STDEV over a range [p1..p2]
-///    14    = SLEEP
+///    1–4 = "cell ±/* literal"
+///    5–8 = "cell ±/* cell"
+///    9–13 = MIN, MAX, AVG, SUM, STDEV over a range [p1..p2]
+///    14 = SLEEP
 #[derive(Copy, Clone, Debug)]
 pub struct Formula {
     pub op_type: i32,
@@ -54,8 +54,8 @@ pub fn add_formula(
         9..=13 => {
             let start = p1 as usize;
             let end   = p2 as usize;
-            let (sr, sc) = (start / cols as usize, start % cols as usize);
-            let (er, ec) = (  end / cols as usize,   end % cols as usize);
+            let (sr, sc) = (start / cols, start % cols);
+            let (er, ec) = (end / cols, end % cols);
 
             // reject true rectangles
             if sr != er && sc != ec { return; }
@@ -63,14 +63,14 @@ pub fn add_formula(
             if sc == ec {
                 // vertical
                 for r in sr..=er {
-                    let src = r * cols as usize + sc;
+                    let src = r * cols + sc;
                     if src == cell { continue; }
                     graph.adj[src].push(cell);
                 }
             } else {
                 // horizontal
                 for c in sc..=ec {
-                    let src = sr * cols as usize + c;
+                    let src = sr * cols + c;
                     if src == cell { continue; }
                     graph.adj[src].push(cell);
                 }
@@ -102,20 +102,20 @@ pub fn delete_edge(
         9..=13 => {
             let start = f.p1 as usize;
             let end   = f.p2 as usize;
-            let (sr, sc) = (start / cols as usize, start % cols as usize);
-            let (er, ec) = (  end / cols as usize,   end % cols as usize);
+            let (sr, sc) = (start / cols, start % cols);
+            let (er, ec) = (end / cols, end % cols);
 
             if sc == ec {
                 // vertical
                 for r in sr..=er {
-                    let src = r * cols as usize + sc;
+                    let src = r * cols + sc;
                     if src == cell { continue; }
                     graph.adj[src].push(cell);
                 }
             } else {
                 // horizontal
                 for c in sc..=ec {
-                    let src = sr * cols as usize + c;
+                    let src = sr * cols + c;
                     if src == cell { continue; }
                     graph.adj[src].push(cell);
                 }
@@ -143,7 +143,7 @@ pub fn topological_sort(
     start:      usize,
     total_size: usize,
 ) -> Option<Vec<usize>> {
-    // 1) BFS to mark reachable & count in‑degrees
+    // 1) BFS to mark reachable and count in‑degrees
     let mut in_degree = vec![0; total_size];
     let mut reachable = vec![false; total_size];
     let mut queue     = VecDeque::new();
@@ -197,7 +197,7 @@ pub fn recalculate(
         None    => return false,
     };
 
-    // make a working copy & zero out all dependents
+    // make a working copy and zero out all dependents
     for &c in &sorted {
         arr[c] = 0;
     }
