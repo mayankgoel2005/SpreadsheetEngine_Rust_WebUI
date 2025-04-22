@@ -6,30 +6,58 @@
   <!-- Tell Trunk to build your WASM library -->
   <link data-trunk rel="rust" data-target-name="lab1" />
   <style>
+    :root {
+      --bg-color: #f9f9f9;
+      --text-color: #000;
+      --border-color: #ccc;
+      --input-bg: #fff;
+      --input-text: #000;
+    }
+  
+    body.dark-mode {
+      --bg-color: #1e1e1e;
+      --text-color: #f0f0f0;
+      --border-color: #444;
+      --input-bg: #2b2b2b;
+      --input-text: #f0f0f0;
+    }
+  
     body {
       font-family: Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background 0.3s, color 0.3s;
     }
+  
     #spreadsheet-container {
       margin: 20px;
       padding: 10px;
-      border: 1px solid #ccc;
-      background: #f9f9f9;
+      border: 1px solid var(--border-color);
+      background: var(--bg-color);
     }
+  
     #formula-container {
       margin: 20px;
     }
+  
     input[type="text"] {
       font-size: 16px;
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      border: 1px solid var(--border-color);
+      padding: 4px 8px;
     }
-    /* Style for table cells */
+  
     table {
       width: 100%;
     }
+  
     th, td {
       padding: 5px;
       text-align: center;
     }
   </style>
+  
 
 </head>
 <body>
@@ -43,11 +71,7 @@
   <label for="formula-input">Enter formula:</label>
   <input type="text" id="formula-input" placeholder="E.g., A1=42 or A1=B2+5" />
 </div>
-<div style="margin: 10px 20px;">
-  <button id="undo-btn">Undo</button>
-  <button id="redo-btn">Redo</button>
-  <button id="download-csv-btn">Download CSV</button> <!-- New button -->
-</div>
+
 
 <div id="graph-container" style="margin: 20px;">
   <canvas id="graph-canvas" width="800" height="400"></canvas>
@@ -175,6 +199,49 @@
   };
 
   runApp();
+
+  // Keyboard shortcuts for Undo, Redo, Export CSV, and Toggle Dark Mode
+document.addEventListener("keydown", async (e) => {
+  const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+  if (isCtrlOrCmd && e.key === "z" && !e.shiftKey) {
+    e.preventDefault();
+    const html = await undo();
+    document.getElementById("spreadsheet-container").innerHTML = html;
+  }
+
+  if ((isCtrlOrCmd && e.key === "y") || (isCtrlOrCmd && e.shiftKey && e.key === "Z")) {
+    e.preventDefault();
+    const html = await redo();
+    document.getElementById("spreadsheet-container").innerHTML = html;
+  }
+
+  if (isCtrlOrCmd && e.key === "s") {
+    e.preventDefault();
+    try {
+      const csvData = await export_csv();
+      const blob = new Blob([csvData], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "spreadsheet.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+    }
+  }
+
+  if (isCtrlOrCmd && e.key.toLowerCase() === "d") {
+    e.preventDefault();
+    document.body.classList.toggle("dark-mode");
+  }
+});
+
+
+document.getElementById("toggle-theme-btn").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+});
 
 </script>
 </body>

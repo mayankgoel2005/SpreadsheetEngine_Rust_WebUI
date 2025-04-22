@@ -17,6 +17,6 @@ path = "src/bin/main.rs"
 required-features = ["autograder"]  # Only build CLI when autograder feature is enabled
 
 [dependencies]
-serde_json = { version = "1.0.140", optional = true }
+serde_json = "1.0.140"
 wasm-bindgen = { version = "0.2", optional = true }
 web-sys = { version = "0.3", optional = true, features = ["Window", "Document", "Element", "HtmlElement"] }
