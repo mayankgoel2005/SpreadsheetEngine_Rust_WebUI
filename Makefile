@@ -15,6 +15,7 @@ extension:
 clean:
 	cargo clean
 	rm -f target/release/spreadsheet
+	rm -rf dist build
 
 # Default action (build autograder binary)
 all: build
