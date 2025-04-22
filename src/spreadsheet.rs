@@ -1,5 +1,7 @@
 use crate::graph::{Graph, Formula};
 use crate::display::printer;
+use std::collections::VecDeque;
+
 
 pub struct Spreadsheet {
     pub rows: usize,
@@ -12,6 +14,9 @@ pub struct Spreadsheet {
     pub time: f64,
     pub curr_x: usize,
     pub curry: usize,
+    pub formula_strings: Vec<String>,    // Store formulas as strings
+    pub undo_stack: VecDeque<(usize, String)>, // Store previous formulas for undo
+    pub redo_stack: VecDeque<(usize, String)>,
 }
 
 impl Spreadsheet {
@@ -40,6 +45,9 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
         time: 0.0,
         curr_x: 0,
         curry: 0,
+        formula_strings: vec!["".to_string(); rows * cols],
+        undo_stack: VecDeque::new(),
+        redo_stack: VecDeque::new(),
     }
 }
 

@@ -2,6 +2,70 @@ use std::cmp;
 use crate::graph::{Graph};
 use crate::input_parser::cell_parser;
 
+#[derive(Clone)]
+struct CellChange {
+    row: usize,
+    col: usize,
+    old_value: i32,
+    new_value: i32,
+}
+
+pub struct Spreadsheet {
+    arr: Vec<i32>,                  // The array representing spreadsheet values
+    cols: usize,                    // Number of columns
+    rows: usize,                    // Number of rows
+    undo_stack: Vec<CellChange>,    // Stack for undo
+    redo_stack: Vec<CellChange>,    // Stack for redo
+}
+
+impl Spreadsheet {
+    pub fn new(cols: usize, rows: usize) -> Self {
+        Spreadsheet {
+            arr: vec![0; cols * rows],
+            cols,
+            rows,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+        }
+    }
+
+    pub fn update_cell(&mut self, row: usize, col: usize, new_value: i32) {
+        let index = row * self.cols + col;
+        let old_value = self.arr[index];
+        if old_value != new_value {
+            // Store the change for undo
+            self.undo_stack.push(CellChange {
+                row,
+                col,
+                old_value,
+                new_value,
+            });
+
+            // Clear the redo stack, as a new change invalidates future redo operations
+            self.redo_stack.clear();
+
+            // Apply the change
+            self.arr[index] = new_value;
+        }
+    }
+
+    pub fn undo(&mut self) {
+        if let Some(last_change) = self.undo_stack.pop() {
+            let index = last_change.row * self.cols + last_change.col;
+            self.arr[index] = last_change.old_value;
+            self.redo_stack.push(last_change); // Push the undone change to the redo stack
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if let Some(last_change) = self.redo_stack.pop() {
+            let index = last_change.row * self.cols + last_change.col;
+            self.arr[index] = last_change.new_value;
+            self.undo_stack.push(last_change); // Push the redone change to the undo stack
+        }
+    }
+}
+
 pub fn printer(curr_x: usize, curry: usize, arr: &[i32], cols: usize, rows: usize) {
     // Print column headers
     print!("      ");
@@ -109,10 +173,11 @@ pub fn scroller_display(
         // On an invalid scroll, do nothing.
     }
 }
+
 // In src/display.rs
 
 /// Convert a zero-indexed column number to a spreadsheet column name (0 -> A, 1 -> B, 26 -> AA, etc.)
-fn column_index_to_name(mut col: usize) -> String {
+pub fn column_index_to_name(mut col: usize) -> String {
     let mut name = String::new();
     loop {
         name.insert(0, (b'A' + (col % 26) as u8) as char);
@@ -123,6 +188,7 @@ fn column_index_to_name(mut col: usize) -> String {
     }
     name
 }
+
 pub fn render_spreadsheet(
     _curr_x: usize,
     _curr_y: usize,
@@ -143,7 +209,7 @@ pub fn render_spreadsheet(
 
     // Render column headers (top row)
     output.push_str("<tr><th></th>");  // Top-left empty corner
-    
+
     for col in 0..cols {
         let col_name = column_index_to_name(col);
         output.push_str(&format!(r#"<th style="padding: 5px;">{}</th>"#, col_name));

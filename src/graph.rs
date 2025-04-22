@@ -1,6 +1,7 @@
 // src/graph.rs
 
 use std::collections::VecDeque;
+use std::fmt;
 // use std::i32;
 
 /// A recorded formula:
@@ -16,6 +17,13 @@ pub struct Formula {
     pub p1:     i32,
     pub p2:     i32,
 }
+
+impl fmt::Display for Formula {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Formula {{ op_type: {}, p1: {}, p2: {} }}", self.op_type, self.p1, self.p2)
+    }
+}
+
 
 /// A very simple adjacency list: for each cell index, a Vec of its dependents.
 pub struct Graph {
