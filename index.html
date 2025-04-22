@@ -21,6 +21,31 @@
       --input-text: #f0f0f0;
     }
 
+    /* Define additional color themes */
+    body.theme-blue {
+      --bg-color: #e3f2fd;
+      --text-color: #0d47a1;
+      --border-color: #90caf9;
+      --input-bg: #bbdefb;
+      --input-text: #0d47a1;
+    }
+
+    body.theme-green {
+      --bg-color: #e8f5e9;
+      --text-color: #1b5e20;
+      --border-color: #a5d6a7;
+      --input-bg: #c8e6c9;
+      --input-text: #1b5e20;
+    }
+
+    body.theme-yellow {
+      --bg-color: #fffde7;
+      --text-color: #f57f17;
+      --border-color: #fff59d;
+      --input-bg: #fff9c4;
+      --input-text: #f57f17;
+    }
+
     body {
       font-family: Arial, sans-serif;
       background-color: var(--bg-color);
@@ -99,11 +124,17 @@
 </head>
 <body>
 <h1>Real-Time Spreadsheet</h1>
+
+<!-- Add a dropdown for selecting the spreadsheet color theme -->
 <div style="position: absolute; top: 20px; right: 20px;">
-  <label class="switch">
-    <input type="checkbox" id="theme-toggle">
-    <span class="slider"></span>
-  </label>
+  <label for="theme-select">Theme:</label>
+  <select id="theme-select">
+    <option value="">Default</option>
+    <option value="theme-blue">Blue</option>
+    <option value="theme-green">Green</option>
+    <option value="theme-yellow">Yellow</option>
+    <option value="dark-mode">Dark Mode</option> <!-- Added Dark Mode option -->
+  </select>
 </div>
 
 <div id="spreadsheet-container"></div>
@@ -210,8 +241,11 @@
       URL.revokeObjectURL(url);
     });
 
-    document.getElementById("theme-toggle").addEventListener("change", (e) => {
-      document.body.classList.toggle("dark-mode", e.target.checked);
+    // Handle theme selection
+    document.getElementById("theme-select").addEventListener("change", (e) => {
+      const selectedTheme = e.target.value;
+      document.body.className = selectedTheme; // Apply the selected theme
+      document.getElementById("theme-toggle").checked = selectedTheme === "dark-mode"; // Sync toggle with dropdown
     });
 
     // Add global keyboard shortcuts
@@ -227,9 +261,9 @@
       } else if ((e.ctrlKey || e.metaKey) && e.key === "d") {
         // Ctrl+D or Command+D for toggling dark mode
         e.preventDefault();
-        const themeToggle = document.getElementById("theme-toggle");
-        themeToggle.checked = !themeToggle.checked;
-        document.body.classList.toggle("dark-mode", themeToggle.checked);
+        const isDarkMode = !document.body.classList.contains("dark-mode");
+        document.body.className = isDarkMode ? "dark-mode" : ""; // Toggle dark mode
+        document.getElementById("theme-select").value = isDarkMode ? "dark-mode" : ""; // Sync dropdown with mode
       } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         // Ctrl+S or Command+S for downloading CSV
         e.preventDefault();
