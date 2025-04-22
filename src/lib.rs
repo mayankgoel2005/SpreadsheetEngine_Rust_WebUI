@@ -200,3 +200,24 @@ pub fn redo() -> Result<String, wasm_bindgen::prelude::JsValue> {
         ))
     })
 }
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn export_csv() -> String {
+    SPREADSHEET.with(|s| {
+        let sheet = s.borrow();
+        let mut csv_data = String::new();
+
+        for row in 0..sheet.rows {
+            let mut row_data = Vec::new();
+            for col in 0..sheet.cols {
+                let cell_value = &sheet.arr[row * sheet.cols + col];
+                row_data.push(cell_value.to_string());
+            }
+            csv_data.push_str(&row_data.join(","));
+            csv_data.push('\n');
+        }
+
+        csv_data
+    })
+}

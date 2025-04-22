@@ -46,12 +46,13 @@
 <div style="margin: 10px 20px;">
   <button id="undo-btn">Undo</button>
   <button id="redo-btn">Redo</button>
+  <button id="download-csv-btn">Download CSV</button> <!-- New button -->
 </div>
 <!-- Import the WASM glue code using its full generated filename -->
 <script type="module">
   // Change the following file name to match the one in your dist folder
-  import init, { render_initial_spreadsheet, update_formula, undo, redo }
-    from "./lab1.js";
+  import init, { render_initial_spreadsheet, update_formula, undo, redo, export_csv } 
+    from "./lab1.js"; // Added `export_csv`
 
   async function runApp() {
     try {
@@ -84,6 +85,22 @@
       document.getElementById("redo-btn").addEventListener("click", async () => {
         const html = await redo();
         document.getElementById("spreadsheet-container").innerHTML = html;
+      });
+
+      // Add event listener for the "Download CSV" button
+      document.getElementById("download-csv-btn").addEventListener("click", async () => {
+        try {
+          const csvData = await export_csv(); // Call the Rust function to get CSV data
+          const blob = new Blob([csvData], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "spreadsheet.csv";
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error("Error exporting CSV:", error);
+        }
       });
     } catch (error) {
       console.error("Error initializing or updating the spreadsheet:", error);
