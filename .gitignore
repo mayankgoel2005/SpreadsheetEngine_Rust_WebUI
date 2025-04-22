@@ -4,3 +4,6 @@
 dist/
 *.wasm
 target
+Cargo.lock
+index.js
+extension

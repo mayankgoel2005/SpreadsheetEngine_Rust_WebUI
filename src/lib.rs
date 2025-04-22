@@ -71,7 +71,7 @@ use spreadsheet::{initialize_spreadsheet, Spreadsheet};
 
 // Global spreadsheet state stored as thread-local storage.
 thread_local! {
-    pub static SPREADSHEET: RefCell<Spreadsheet> = RefCell::new(initialize_spreadsheet(200, 100));
+    pub static SPREADSHEET: RefCell<Spreadsheet> = RefCell::new(initialize_spreadsheet(20, 10));
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -121,6 +121,27 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
                     }
                 }
                 return Err(JsValue::from_str("Invalid format in New(rows,cols)"));
+            }
+        }
+
+        // Handle "GRAPH(A1:C10)"
+        if let Some(rest) = input.strip_prefix("GRAPH(") {
+            if let Some(end_idx) = rest.find(')') {
+                let range = &rest[..end_idx];
+                let cells = input_parser::parse_range(range, sheet.cols, sheet.rows);
+                if let Some(cells) = cells {
+                    let mut graph_data = Vec::new();
+                    for col in cells.start_col..=cells.end_col {
+                        let mut column_data = Vec::new();
+                        for row in cells.start_row..=cells.end_row {
+                            let index = row * sheet.cols + col;
+                            column_data.push(sheet.arr[index]);
+                        }
+                        graph_data.push(column_data);
+                    }
+                    return Ok(serde_json::to_string(&graph_data).unwrap());
+                }
+                return Err(JsValue::from_str("Invalid range in GRAPH(A1:C10)"));
             }
         }
 
@@ -221,3 +242,4 @@ pub fn export_csv() -> String {
         csv_data
     })
 }
+

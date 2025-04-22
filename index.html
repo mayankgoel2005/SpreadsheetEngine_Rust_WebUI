@@ -48,10 +48,16 @@
   <button id="redo-btn">Redo</button>
   <button id="download-csv-btn">Download CSV</button> <!-- New button -->
 </div>
+
+<div id="graph-container" style="margin: 20px;">
+  <canvas id="graph-canvas" width="800" height="400"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Import the WASM glue code using its full generated filename -->
 <script type="module">
   // Change the following file name to match the one in your dist folder
-  import init, { render_initial_spreadsheet, update_formula, undo, redo, export_csv } 
+  import init, { render_initial_spreadsheet, update_formula, undo, redo, export_csv }
     from "./lab1.js"; // Added `export_csv`
 
   async function runApp() {
@@ -70,7 +76,14 @@
       formulaInput.addEventListener("keydown", async (e) => {
         if (e.key === "Enter") {
           const formula = formulaInput.value.trim();
-          if (formula !== "") {
+          if (formula.startsWith("GRAPH(")) {
+            try {
+              const graphData = await update_formula(formula);
+              renderGraph(JSON.parse(graphData));
+            } catch (err) {
+              console.error("Error generating graph:", err);
+            }
+          } else if (formula !== "") {
             const updatedHTML = await update_formula(formula);
             console.log(`Updated HTML for formula "${formula}":`, updatedHTML);
             spreadsheetContainer.innerHTML = updatedHTML;
@@ -105,6 +118,35 @@
     } catch (error) {
       console.error("Error initializing or updating the spreadsheet:", error);
     }
+  }
+
+  function renderGraph(data) {
+    const graphContainer = document.getElementById("graph-container");
+    graphContainer.innerHTML = '<canvas id="graph-canvas" width="800" height="400"></canvas>'; // Clear and recreate canvas
+    const ctx = document.getElementById("graph-canvas").getContext("2d");
+
+    const datasets = data.map((column, index) => ({
+      label: `Column ${String.fromCharCode(65 + index)}`,
+      data: column,
+      borderColor: `hsl(${index * 60}, 70%, 50%)`,
+      fill: false,
+    }));
+
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: Array.from({ length: data[0].length }, (_, i) => i + 1),
+        datasets,
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: "top",
+          },
+        },
+      },
+    });
   }
 
   // Event handler for when a cell loses focus

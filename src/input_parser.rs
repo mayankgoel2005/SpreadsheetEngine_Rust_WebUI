@@ -44,6 +44,34 @@ pub fn cell_parser(s: &str, cols: i32, rows: i32) -> i32 {
     }
 }
 
+pub struct CellRange {
+    pub start_row: usize,
+    pub end_row: usize,
+    pub start_col: usize,
+    pub end_col: usize,
+}
+
+pub fn parse_range(range: &str, cols: usize, rows: usize) -> Option<CellRange> {
+    let parts: Vec<&str> = range.split(':').collect();
+    if parts.len() == 2 {
+        let start = cell_parser(parts[0], cols as i32, rows as i32);
+        let end = cell_parser(parts[1], cols as i32, rows as i32);
+        if start != -1 && end != -1 {
+            let start_row = start as usize / cols;
+            let start_col = start as usize % cols;
+            let end_row = end as usize / cols;
+            let end_col = end as usize % cols;
+            return Some(CellRange {
+                start_row,
+                end_row,
+                start_col,
+                end_col,
+            });
+        }
+    }
+    None
+}
+
 /// + → 1, - → 2, * → 3, / → 4
 #[inline]
 fn return_optype(op: char) -> i32 {
@@ -331,3 +359,4 @@ pub fn parser(sheet: &mut Spreadsheet, txt: &str) -> i32 {
         -1 // invalid input
     }
 }
+
