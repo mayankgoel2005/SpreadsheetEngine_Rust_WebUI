@@ -5,7 +5,7 @@ edition = "2021"
 
 [features]
 default = []
-wasm = ["wasm-bindgen"]
+wasm = ["wasm-bindgen", "web-sys"]
 autograder = []
 
 [lib]
@@ -18,4 +18,4 @@ required-features = ["autograder"]  # Only build CLI when autograder feature is 
 
 [dependencies]
 wasm-bindgen = { version = "0.2", optional = true }
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement"] }
+web-sys = { version = "0.3", optional = true, features = ["Window", "Document", "Element", "HtmlElement"] }

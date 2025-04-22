@@ -13,7 +13,7 @@ struct CellChange {
 pub struct Spreadsheet {
     arr: Vec<i32>,                  // The array representing spreadsheet values
     cols: usize,                    // Number of columns
-    rows: usize,                    // Number of rows
+    _rows: usize,                    // Number of rows
     undo_stack: Vec<CellChange>,    // Stack for undo
     redo_stack: Vec<CellChange>,    // Stack for redo
 }
@@ -23,7 +23,7 @@ impl Spreadsheet {
         Spreadsheet {
             arr: vec![0; cols * rows],
             cols,
-            rows,
+            _rows: rows,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
         }

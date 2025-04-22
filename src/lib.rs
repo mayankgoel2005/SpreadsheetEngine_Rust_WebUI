@@ -64,7 +64,9 @@ pub mod scrolling;
 #[path = "scrolling.rs"]
 pub mod scrolling;
 
+#[cfg(feature = "wasm")]
 use crate::input_parser::cell_parser;
+
 use spreadsheet::{initialize_spreadsheet, Spreadsheet};
 
 // Global spreadsheet state stored as thread-local storage.
