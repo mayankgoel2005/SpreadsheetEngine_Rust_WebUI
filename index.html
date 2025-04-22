@@ -30,6 +30,7 @@
       text-align: center;
     }
   </style>
+  
 </head>
 <body>
 <h1>Real-Time Spreadsheet</h1>
@@ -42,11 +43,14 @@
   <label for="formula-input">Enter formula:</label>
   <input type="text" id="formula-input" placeholder="E.g., A1=42 or A1=B2+5" />
 </div>
-
+<div style="margin: 10px 20px;">
+  <button id="undo-btn">Undo</button>
+  <button id="redo-btn">Redo</button>
+</div>
 <!-- Import the WASM glue code using its full generated filename -->
 <script type="module">
   // Change the following file name to match the one in your dist folder
-  import init, { render_initial_spreadsheet, update_formula }
+  import init, { render_initial_spreadsheet, update_formula, undo, redo }
     from "./lab1.js";
 
   async function runApp() {
@@ -71,6 +75,15 @@
             spreadsheetContainer.innerHTML = updatedHTML;
           }
         }
+      });
+      document.getElementById("undo-btn").addEventListener("click", async () => {
+        const html = await undo();
+        document.getElementById("spreadsheet-container").innerHTML = html;
+      });
+
+      document.getElementById("redo-btn").addEventListener("click", async () => {
+        const html = await redo();
+        document.getElementById("spreadsheet-container").innerHTML = html;
       });
     } catch (error) {
       console.error("Error initializing or updating the spreadsheet:", error);
@@ -103,6 +116,7 @@
   };
 
   runApp();
+    
 </script>
 </body>
 </html>
