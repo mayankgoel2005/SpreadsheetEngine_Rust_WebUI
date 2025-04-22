@@ -124,6 +124,11 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
             }
         }
 
+        // Handle IMPORT(...) → Let JS handle it
+        if input.trim().starts_with("IMPORT(") {
+            return Ok("__IMPORT_EXTERNAL__".to_string());
+        }
+
         // Handle "GRAPH(A1:C10)"
         if let Some(rest) = input.strip_prefix("GRAPH(") {
             if let Some(end_idx) = rest.find(')') {
@@ -141,14 +146,14 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
                     }
                     return Ok(serde_json::to_string(&graph_data).unwrap());
                 }
-                return Err(JsValue::from_str("Invalid range in GRAPH(A1:C10)"));
+                return Err(JsValue::from_str("Invalid range in GRAPH(...)"));
             }
         }
 
+        // Handle A1=... or A1=B1+C1
         if let Some(eq) = input.find('=') {
             let cell_index = cell_parser(&input[..eq], sheet.cols as i32, sheet.rows as i32) as usize;
 
-            // If there's no formula for this cell yet, push a default "Ax=0" to undo stack
             if sheet.formula_strings[cell_index].is_empty() {
                 let default_formula = format!(
                     "{}=0",
@@ -157,13 +162,11 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
                 );
                 sheet.undo_stack.push_back((cell_index, default_formula));
             } else {
-                // Save existing formula for undo
                 let old_formula = sheet.formula_strings[cell_index].clone();
                 sheet.undo_stack.push_back((cell_index, old_formula));
             }
-            // Clear redo stack
+
             sheet.redo_stack.clear();
-            // Store new formula
             sheet.formula_strings[cell_index] = input.to_string();
         } else {
             return Err(JsValue::from_str("Invalid formula input"));
@@ -179,6 +182,7 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
         ))
     })
 }
+
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]

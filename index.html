@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <title>Real-Time Spreadsheet</title>
-  <!-- Tell Trunk to build your WASM library -->
   <link data-trunk rel="rust" data-target-name="lab1" />
   <style>
     :root {
@@ -13,7 +12,7 @@
       --input-bg: #fff;
       --input-text: #000;
     }
-  
+
     body.dark-mode {
       --bg-color: #1e1e1e;
       --text-color: #f0f0f0;
@@ -21,25 +20,25 @@
       --input-bg: #2b2b2b;
       --input-text: #f0f0f0;
     }
-  
+
     body {
       font-family: Arial, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       transition: background 0.3s, color 0.3s;
     }
-  
+
     #spreadsheet-container {
       margin: 20px;
       padding: 10px;
       border: 1px solid var(--border-color);
       background: var(--bg-color);
     }
-  
+
     #formula-container {
       margin: 20px;
     }
-  
+
     input[type="text"] {
       font-size: 16px;
       background-color: var(--input-bg);
@@ -47,59 +46,56 @@
       border: 1px solid var(--border-color);
       padding: 4px 8px;
     }
-  
+
     table {
       width: 100%;
     }
-  
+
     th, td {
       padding: 5px;
       text-align: center;
     }
-      /* Toggle switch styling */
-  .switch {
-    position: relative;
-    display: inline-block;
-    width: 50px;
-    height: 24px;
-  }
 
-  .switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
 
-  .slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #ccc;
-    transition: 0.4s;
-    border-radius: 24px;
-  }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
 
-  .slider:before {
-    position: absolute;
-    content: "";
-    height: 18px; width: 18px;
-    left: 3px; bottom: 3px;
-    background-color: white;
-    transition: 0.4s;
-    border-radius: 50%;
-  }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc;
+      transition: 0.4s;
+      border-radius: 24px;
+    }
 
-  input:checked + .slider {
-    background-color: #4CAF50;
-  }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
 
-  input:checked + .slider:before {
-    transform: translateX(26px);
-  }
+    input:checked + .slider {
+      background-color: #4CAF50;
+    }
 
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
   </style>
-  
-
 </head>
 <body>
 <h1>Real-Time Spreadsheet</h1>
@@ -110,90 +106,118 @@
   </label>
 </div>
 
-<!-- Container for the spreadsheet -->
 <div id="spreadsheet-container"></div>
 
-<!-- Formula input box -->
 <div id="formula-container">
   <label for="formula-input">Enter formula:</label>
-  <input type="text" id="formula-input" placeholder="E.g., A1=42 or A1=B2+5" />
+  <input type="text" id="formula-input" placeholder="E.g., A1=42 or IMPORT(AAPL,10,A)" />
 </div>
 
+<div style="margin: 10px 20px;">
+  <button id="undo-btn">Undo</button>
+  <button id="redo-btn">Redo</button>
+  <button id="download-csv-btn">Download CSV</button>
+</div>
 
 <div id="graph-container" style="margin: 20px;">
   <canvas id="graph-canvas" width="800" height="400"></canvas>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Import the WASM glue code using its full generated filename -->
 <script type="module">
-  // Change the following file name to match the one in your dist folder
   import init, { render_initial_spreadsheet, update_formula, undo, redo, export_csv }
-    from "./lab1.js"; // Added `export_csv`
+    from "./lab1.js";
 
   async function runApp() {
-    try {
-      await init();
+    await init();
 
-      const spreadsheetContainer = document.getElementById("spreadsheet-container");
-      const formulaInput = document.getElementById("formula-input");
+    const apiKey = "e666eaf09a49491fb9a9adefc743a7a3";
+    const spreadsheetContainer = document.getElementById("spreadsheet-container");
+    const formulaInput = document.getElementById("formula-input");
 
-      // Render and display the initial spreadsheet
-      let html = render_initial_spreadsheet();
-      console.log("Initial spreadsheet HTML:", html);
-      spreadsheetContainer.innerHTML = html;
+    spreadsheetContainer.innerHTML = render_initial_spreadsheet();
 
-      // Listen for keydown events in the formula input.
-      formulaInput.addEventListener("keydown", async (e) => {
-        if (e.key === "Enter") {
-          const formula = formulaInput.value.trim();
-          if (formula.startsWith("GRAPH(")) {
-            try {
-              const graphData = await update_formula(formula);
-              renderGraph(JSON.parse(graphData));
-            } catch (err) {
-              console.error("Error generating graph:", err);
+    formulaInput.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter") {
+        const formula = formulaInput.value.trim();
+
+        if (formula.startsWith("IMPORT(")) {
+          const [, args] = formula.match(/^IMPORT\(([^)]+)\)/) || [];
+          if (!args) return;
+
+          const [symbol, daysStr, colChar] = args.split(",").map(s => s.trim());
+          const days = parseInt(daysStr);
+          const col = colChar.toUpperCase();
+
+          const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&outputsize=${days}&apikey=${apiKey}`;
+
+          try {
+            console.log("Trying to fetch:", url);
+            const res = await fetch(url);
+            const data = await res.json();
+            const series = data.values;
+            if (!series) return;
+
+            for (let i = 0; i < days && i < series.length; i++) {
+              const val = parseFloat(series[i].close);
+              const cellFormula = `${col}${i + 1}=${Math.round(val)}`;
+              const result = await update_formula(cellFormula);
+              if (result !== "__IMPORT_EXTERNAL__") {
+                spreadsheetContainer.innerHTML = result;
+              }
             }
-          } else if (formula !== "") {
-            const updatedHTML = await update_formula(formula);
-            console.log(`Updated HTML for formula "${formula}":`, updatedHTML);
-            spreadsheetContainer.innerHTML = updatedHTML;
+
+          } catch (err) {
+            console.error("IMPORT failed:", err);
           }
-        }
-      });
-      document.getElementById("undo-btn").addEventListener("click", async () => {
-        const html = await undo();
-        document.getElementById("spreadsheet-container").innerHTML = html;
-      });
 
-      document.getElementById("redo-btn").addEventListener("click", async () => {
-        const html = await redo();
-        document.getElementById("spreadsheet-container").innerHTML = html;
-      });
-
-      // Add event listener for the "Download CSV" button
-      document.getElementById("download-csv-btn").addEventListener("click", async () => {
-        try {
-          const csvData = await export_csv(); // Call the Rust function to get CSV data
-          const blob = new Blob([csvData], { type: "text/csv" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "spreadsheet.csv";
-          a.click();
-          URL.revokeObjectURL(url);
-        } catch (error) {
-          console.error("Error exporting CSV:", error);
+          return;
         }
-      });
-    } catch (error) {
-      console.error("Error initializing or updating the spreadsheet:", error);
-    }
+
+        if (formula.startsWith("GRAPH(")) {
+          try {
+            const graphPayload = await update_formula(formula);
+            renderGraph(JSON.parse(graphPayload));
+          } catch (err) {
+            console.error("Graph rendering failed:", err);
+          }
+          return;
+        }
+
+        const updatedHTML = await update_formula(formula);
+        if (updatedHTML !== "__IMPORT_EXTERNAL__") {
+          spreadsheetContainer.innerHTML = updatedHTML;
+        }
+      }
+    });
+
+    document.getElementById("undo-btn").addEventListener("click", async () => {
+      spreadsheetContainer.innerHTML = await undo();
+    });
+
+    document.getElementById("redo-btn").addEventListener("click", async () => {
+      spreadsheetContainer.innerHTML = await redo();
+    });
+
+    document.getElementById("download-csv-btn").addEventListener("click", async () => {
+      const csv = await export_csv();
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "spreadsheet.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("theme-toggle").addEventListener("change", (e) => {
+      document.body.classList.toggle("dark-mode", e.target.checked);
+    });
   }
 
   function renderGraph(data) {
     const graphContainer = document.getElementById("graph-container");
-    graphContainer.innerHTML = '<canvas id="graph-canvas" width="800" height="400"></canvas>'; // Clear and recreate canvas
+    graphContainer.innerHTML = '<canvas id="graph-canvas" width="800" height="400"></canvas>';
     const ctx = document.getElementById("graph-canvas").getContext("2d");
 
     const datasets = data.map((column, index) => ({
@@ -212,93 +236,34 @@
       options: {
         responsive: true,
         plugins: {
-          legend: {
-            position: "top",
-          },
+          legend: { position: "top" },
         },
       },
     });
   }
 
-  // Event handler for when a cell loses focus
   window.handleCellBlur = async (event) => {
     const inputEl = event.target;
-    const cellId = inputEl.getAttribute("data-cell"); // e.g. "A1"
+    const cellId = inputEl.getAttribute("data-cell");
     const newValue = inputEl.value.trim();
-
-    // Form a formula like "A1=...". Optionally, you can further process newValue.
     const formula = `${cellId}=${newValue}`;
-    console.log("Cell blur, updating with formula:", formula);
     try {
       const updatedHTML = await update_formula(formula);
-      document.getElementById("spreadsheet-container").innerHTML = updatedHTML;
+      if (updatedHTML !== "__IMPORT_EXTERNAL__") {
+        document.getElementById("spreadsheet-container").innerHTML = updatedHTML;
+      }
     } catch (err) {
-      console.error("Error updating formula on cell blur:", err);
+      console.error("Cell update failed:", err);
     }
   };
 
-  // Event handler for keyup in a cell.
-  // If Enter is pressed while editing a cell, process the update.
   window.handleCellKeyup = async (event) => {
     if (event.key === "Enter") {
-      event.target.blur();  // Remove focus to trigger onblur handler
+      event.target.blur();
     }
   };
 
   runApp();
-
-  // Keyboard shortcuts for Undo, Redo, Export CSV, and Toggle Dark Mode
-document.addEventListener("keydown", async (e) => {
-  const isCtrlOrCmd = e.ctrlKey || e.metaKey;
-
-  if (isCtrlOrCmd && e.key === "z" && !e.shiftKey) {
-    e.preventDefault();
-    const html = await undo();
-    document.getElementById("spreadsheet-container").innerHTML = html;
-  }
-
-  if ((isCtrlOrCmd && e.key === "y") || (isCtrlOrCmd && e.shiftKey && e.key === "Z")) {
-    e.preventDefault();
-    const html = await redo();
-    document.getElementById("spreadsheet-container").innerHTML = html;
-  }
-
-  if (isCtrlOrCmd && e.key === "s") {
-    e.preventDefault();
-    try {
-      const csvData = await export_csv();
-      const blob = new Blob([csvData], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "spreadsheet.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error exporting CSV:", error);
-    }
-  }
-  if (isCtrlOrCmd && e.key === "g") {
-  e.preventDefault();
-  const canvas = document.getElementById("graph-canvas");
-  const imageUrl = canvas.toDataURL("image/png");
-
-  // Create an anchor element to trigger the download
-  const a = document.createElement("a");
-  a.href = imageUrl;
-  a.download = "graph.png";  // Name the file to be downloaded
-  a.click();
-}
-
-});
-
-
-
-document.getElementById("theme-toggle").addEventListener("change", (e) => {
-  document.body.classList.toggle("dark-mode", e.target.checked);
-});
-
-
 </script>
 </body>
 </html>

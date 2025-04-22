@@ -132,18 +132,17 @@ pub fn render_spreadsheet(
 ) -> String {
     let mut output = String::new();
 
-    // Wrap the table inside a scrollable div with fixed width and height
+    // Corrected inline style spacing
     output.push_str(r#"
-        <div id="scroll-container" 
-             style="max-width: 1020 px; max-height: 600 px; overflow: auto; border: 1 px solid #ccc;">
+        <div id="scroll-container"
+             style="max-width: 1020px; max-height: 600px; overflow: auto; border: 1px solid #ccc;">
     "#);
 
     // Start the table
     output.push_str(r#"<table border="1" style="border-collapse:collapse;">"#);
 
-    // Render column headers (top row)
+    // Render column headers (A, B, C...)
     output.push_str("<tr><th></th>");  // Top-left empty corner
-    
     for col in 0..cols {
         let col_name = column_index_to_name(col);
         output.push_str(&format!(r#"<th style="padding: 5px;">{}</th>"#, col_name));
@@ -183,3 +182,4 @@ pub fn render_spreadsheet(
 
     output
 }
+
