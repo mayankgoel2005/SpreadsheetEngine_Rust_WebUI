@@ -213,6 +213,46 @@
     document.getElementById("theme-toggle").addEventListener("change", (e) => {
       document.body.classList.toggle("dark-mode", e.target.checked);
     });
+
+    // Add global keyboard shortcuts
+    document.addEventListener("keydown", async (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        // Ctrl+Z or Command+Z for undo
+        e.preventDefault();
+        spreadsheetContainer.innerHTML = await undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        // Ctrl+Y or Command+Y for redo, or Ctrl+Shift+Z or Command+Shift+Z
+        e.preventDefault();
+        spreadsheetContainer.innerHTML = await redo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "d") {
+        // Ctrl+D or Command+D for toggling dark mode
+        e.preventDefault();
+        const themeToggle = document.getElementById("theme-toggle");
+        themeToggle.checked = !themeToggle.checked;
+        document.body.classList.toggle("dark-mode", themeToggle.checked);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        // Ctrl+S or Command+S for downloading CSV
+        e.preventDefault();
+        const csv = await export_csv();
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "spreadsheet.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "g") {
+        // Ctrl+G or Command+G for downloading the graph
+        e.preventDefault();
+        const canvas = document.getElementById("graph-canvas");
+        if (canvas) {
+          const link = document.createElement("a");
+          link.download = "graph.png";
+          link.href = canvas.toDataURL("image/png");
+          link.click();
+        }
+      }
+    });
   }
 
   function renderGraph(data) {
