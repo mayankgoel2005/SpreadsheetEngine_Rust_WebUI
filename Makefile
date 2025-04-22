@@ -1,23 +1,22 @@
-# Build autograder binary with 'autograder' feature
+# Default: build the autograder binary
+all: build
+
+# Build autograder binary with the `autograder` feature
 build:
 	cargo build --release --features autograder
 
-# Run autograder binary with 100x100 grid
-run:
+# Run the autograder binary (100×100 grid)
+run: build
 	./target/release/spreadsheet 100 100
 
-# Build and serve WASM extension with 'wasm' feature
+# Build & serve the WASM extension (no autograder feature)
 extension:
 	trunk build --features wasm
 	trunk serve --features wasm --open
 
-# Clean artifacts
+# Clean everything
 clean:
 	cargo clean
-	rm -f target/release/spreadsheet
 	rm -rf dist build
-
-# Default action (build autograder binary)
-all: build
 
 .PHONY: all build run extension clean
