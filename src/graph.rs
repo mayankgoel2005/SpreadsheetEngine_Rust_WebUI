@@ -11,7 +11,7 @@ use std::fmt;
 ///    5–8 = "cell ±/* cell"
 ///    9–13 = MIN, MAX, AVG, SUM, STDEV over a range [p1..p2]
 ///    14 = SLEEP
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Formula {
     pub op_type: i32,
     pub p1:     i32,
@@ -311,3 +311,352 @@ pub fn recalculate(
     }
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_graph_new() {
+        let graph = Graph::new(5);
+        assert_eq!(graph.adj.len(), 5);
+        for adj_list in graph.adj {
+            assert!(adj_list.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_add_formula_simple_dependency() {
+        let mut graph = Graph::new(5);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 5];
+        add_formula(&mut graph, 1, 0, 0, 1, &mut formula_array, 5);
+        assert_eq!(graph.adj[0], vec![1]);
+        assert_eq!(formula_array[1], Formula { op_type: 1, p1: 0, p2: 0 });
+    }
+
+    #[test]
+    fn test_add_formula_double_dependency() {
+        let mut graph = Graph::new(5);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 5];
+        add_formula(&mut graph, 2, 0, 1, 5, &mut formula_array, 5);
+        assert_eq!(graph.adj[0], vec![2]);
+        assert_eq!(graph.adj[1], vec![2]);
+        assert_eq!(formula_array[2], Formula { op_type: 5, p1: 0, p2: 1 });
+    }
+
+    #[test]
+    fn test_add_formula_range_dependency_vertical() {
+        let mut graph = Graph::new(9);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 9];
+        add_formula(&mut graph, 8, 0, 6, 9, &mut formula_array, 3);
+        assert_eq!(graph.adj[0], vec![8]);
+        assert_eq!(graph.adj[3], vec![8]);
+        assert_eq!(graph.adj[6], vec![8]);
+    }
+
+    #[test]
+    fn test_add_formula_range_dependency_horizontal() {
+        let mut graph = Graph::new(9);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 9];
+        add_formula(&mut graph, 8, 0, 2, 9, &mut formula_array, 3);
+        assert_eq!(graph.adj[0], vec![8]);
+        assert_eq!(graph.adj[1], vec![8]);
+        assert_eq!(graph.adj[2], vec![8]);
+    }
+
+    #[test]
+    fn test_delete_edge_simple_dependency() {
+        let mut graph = Graph::new(5);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 5];
+        add_formula(&mut graph, 1, 0, 0, 1, &mut formula_array, 5);
+        delete_edge(&mut graph, 1, &formula_array, 5);
+        assert!(graph.adj[0].is_empty());
+    }
+
+    #[test]
+    fn test_delete_edge_double_dependency() {
+        let mut graph = Graph::new(5);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 5];
+        add_formula(&mut graph, 2, 0, 1, 5, &mut formula_array, 5);
+        delete_edge(&mut graph, 2, &formula_array, 5);
+        assert!(graph.adj[0].is_empty());
+        assert!(graph.adj[1].is_empty());
+    }
+
+    #[test]
+    fn test_topological_sort_no_cycle() {
+        let mut graph = Graph::new(5);
+        graph.adj[0].push(1);
+        graph.adj[1].push(2);
+        let result = topological_sort(&graph, 0, 5);
+        assert_eq!(result, Some(vec![0, 1, 2]));
+    }
+
+    #[test]
+    fn test_topological_sort_with_cycle() {
+        let mut graph = Graph::new(3);
+        graph.adj[0].push(1);
+        graph.adj[1].push(2);
+        graph.adj[2].push(0);
+        let result = topological_sort(&graph, 0, 3);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_recalculate_no_cycle() {
+        let mut graph = Graph::new(5);
+        let mut arr = vec![0; 5];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: 10, p2: 0 },
+            Formula { op_type: 1, p1: 0, p2: 5 },
+            Formula { op_type: 0, p1: 0, p2: 0 },
+            Formula { op_type: 0, p1: 0, p2: 0 },
+            Formula { op_type: 0, p1: 0, p2: 0 },
+        ];
+        graph.adj[0].push(1);
+        let result = recalculate(&mut graph, 5, &mut arr, 0, &formula_array);
+        assert!(result);
+        assert_eq!(arr[0], 10);
+        assert_eq!(arr[1], 15);
+    }
+
+    #[test]
+    fn test_recalculate_with_cycle() {
+        let mut graph = Graph::new(3);
+        let mut arr = vec![0; 3];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: 10, p2: 0 },
+            Formula { op_type: 1, p1: 0, p2: 5 },
+            Formula { op_type: 1, p1: 1, p2: 5 },
+        ];
+        graph.adj[0].push(1);
+        graph.adj[1].push(2);
+        graph.adj[2].push(0);
+        let result = recalculate(&mut graph, 3, &mut arr, 0, &formula_array);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_formula_display() {
+        let formula = Formula { op_type: 9, p1: 5, p2: 10 };
+        let display = format!("{}", formula);
+        assert_eq!(display, "Formula { op_type: 9, p1: 5, p2: 10 }");
+    }
+
+    #[test]
+    fn test_add_formula_range_dependency_invalid_rectangle() {
+        let mut graph = Graph::new(9);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 9];
+        add_formula(&mut graph, 8, 0, 8, 9, &mut formula_array, 3); // Invalid rectangle
+        assert!(graph.adj[0].is_empty());
+        assert!(graph.adj[1].is_empty());
+        assert!(graph.adj[2].is_empty());
+    }
+
+    #[test]
+    fn test_add_formula_range_min_vertical() {
+        let mut graph = Graph::new(9);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 9];
+        add_formula(&mut graph, 8, 0, 6, 9, &mut formula_array, 3); // MIN over vertical range
+        assert_eq!(graph.adj[0], vec![8]);
+        assert_eq!(graph.adj[3], vec![8]);
+        assert_eq!(graph.adj[6], vec![8]);
+    }
+
+    #[test]
+    fn test_add_formula_range_max_horizontal() {
+        let mut graph = Graph::new(9);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 9];
+        add_formula(&mut graph, 8, 0, 2, 10, &mut formula_array, 3); // MAX over horizontal range
+        assert_eq!(graph.adj[0], vec![8]);
+        assert_eq!(graph.adj[1], vec![8]);
+        assert_eq!(graph.adj[2], vec![8]);
+    }
+
+    #[test]
+    fn test_add_formula_range_invalid_rectangle() {
+        let mut graph = Graph::new(9);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 9];
+        add_formula(&mut graph, 8, 0, 8, 9, &mut formula_array, 3); // Invalid rectangle
+        assert!(graph.adj[0].is_empty());
+        assert!(graph.adj[1].is_empty());
+        assert!(graph.adj[2].is_empty());
+    }
+
+    #[test]
+    fn test_add_formula_range_sum_vertical() {
+        let mut graph = Graph::new(16);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 16];
+        add_formula(&mut graph, 15, 4, 12, 12, &mut formula_array, 4); // SUM over vertical range
+        assert_eq!(graph.adj[4], vec![15]);
+        assert_eq!(graph.adj[8], vec![15]);
+        assert_eq!(graph.adj[12], vec![15]);
+    }
+
+    #[test]
+    fn test_add_formula_range_avg_horizontal() {
+        let mut graph = Graph::new(16);
+        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 16];
+        add_formula(&mut graph, 15, 8, 11, 11, &mut formula_array, 4); // AVG over horizontal range
+        assert_eq!(graph.adj[8], vec![15]);
+        assert_eq!(graph.adj[9], vec![15]);
+        assert_eq!(graph.adj[10], vec![15]);
+        assert_eq!(graph.adj[11], vec![15]);
+    }
+
+    #[test]
+    fn test_arith_subtraction() {
+        assert_eq!(arith(10, 5, '-'), 5);
+        assert_eq!(arith(5, 10, '-'), -5);
+        assert_eq!(arith(i32::MIN, 1, '-'), i32::MAX); // Wrapping subtraction
+    }
+
+    #[test]
+    fn test_arith_multiplication() {
+        assert_eq!(arith(3, 4, '*'), 12);
+        assert_eq!(arith(-3, 4, '*'), -12);
+        assert_eq!(arith(i32::MAX, 2, '*'), i32::MAX.wrapping_mul(2)); // Wrapping multiplication
+        assert_eq!(arith(i32::MIN, -1, '*'), i32::MIN.wrapping_mul(-1)); // Wrapping multiplication
+    }
+
+    #[test]
+    fn test_arith_division() {
+        assert_eq!(arith(10, 2, '/'), 5);
+        assert_eq!(arith(10, 0, '/'), i32::MIN); // Division by zero
+        assert_eq!(arith(-10, 2, '/'), -5);
+    }
+
+    #[test]
+    fn test_arith_invalid_operation() {
+        assert_eq!(arith(10, 5, '%'), i32::MIN); // Unsupported operator
+    }
+
+    #[test]
+    fn test_recalculate_addition() {
+        let mut graph = Graph::new(3);
+        let mut arr = vec![10, 20, 0];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: 10, p2: 0 },
+            Formula { op_type: 0, p1: 20, p2: 0 },
+            Formula { op_type: 5, p1: 0, p2: 1 }, // 10 + 20
+        ];
+        graph.adj[0].push(2);
+        graph.adj[1].push(2);
+
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+        assert!(result);
+        assert_eq!(arr[2], 30);
+    }
+
+    #[test]
+    fn test_recalculate_subtraction() {
+        let mut graph = Graph::new(3);
+        let mut arr = vec![30, 10, 0];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: 30, p2: 0 },
+            Formula { op_type: 0, p1: 10, p2: 0 },
+            Formula { op_type: 6, p1: 0, p2: 1 }, // 30 - 10
+        ];
+        graph.adj[0].push(2);
+        graph.adj[1].push(2);
+
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+        assert!(result);
+        assert_eq!(arr[2], 20);
+    }
+
+    #[test]
+    fn test_recalculate_multiplication() {
+        let mut graph = Graph::new(3);
+        let mut arr = vec![3, 4, 0];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: 3, p2: 0 },
+            Formula { op_type: 0, p1: 4, p2: 0 },
+            Formula { op_type: 7, p1: 0, p2: 1 }, // 3 * 4
+        ];
+        graph.adj[0].push(2);
+        graph.adj[1].push(2);
+
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+        assert!(result);
+        assert_eq!(arr[2], 12);
+    }
+
+    #[test]
+    fn test_recalculate_division() {
+        let mut graph = Graph::new(3);
+        let mut arr = vec![20, 4, 0];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: 20, p2: 0 },
+            Formula { op_type: 0, p1: 4, p2: 0 },
+            Formula { op_type: 8, p1: 0, p2: 1 }, // 20 / 4
+        ];
+        graph.adj[0].push(2);
+        graph.adj[1].push(2);
+
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+        assert!(result);
+        assert_eq!(arr[2], 5);
+    }
+
+    #[test]
+    fn test_recalculate_division_by_zero() {
+        let mut graph = Graph::new(3);
+        let mut arr = vec![20, 0, 0];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: 20, p2: 0 },
+            Formula { op_type: 0, p1: 0, p2: 0 },
+            Formula { op_type: 8, p1: 0, p2: 1 }, // 20 / 0
+        ];
+        graph.adj[0].push(2);
+        graph.adj[1].push(2);
+
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+        assert!(result);
+        assert_eq!(arr[2], i32::MIN); // Division by zero results in i32::MIN
+    }
+
+    #[test]
+    fn test_recalculate_with_error_value() {
+        let mut graph = Graph::new(3);
+        let mut arr = vec![i32::MIN, 10, 0];
+        let formula_array = vec![
+            Formula { op_type: 0, p1: i32::MIN, p2: 0 },
+            Formula { op_type: 0, p1: 10, p2: 0 },
+            Formula { op_type: 5, p1: 0, p2: 1 }, // i32::MIN + 10
+        ];
+        graph.adj[0].push(2);
+        graph.adj[1].push(2);
+
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+        assert!(result);
+        assert_eq!(arr[2], i32::MIN); // Error propagates
+    }
+
+    #[test]
+    fn test_recalculate_min() {
+        let mut graph = Graph::new(9);
+        let mut arr = vec![5, 3, 8, 2, 7, 6, 4, 9, 1];
+        let mut formula_array = vec![
+            Formula { op_type: 0, p1: 0, p2: 0 }; 9
+        ];
+        add_formula(&mut graph, 8, 0, 6, 9, &mut formula_array, 3); // MIN over range A1:A3
+        let result = recalculate(&mut graph, 3, &mut arr, 8, &formula_array);
+        assert!(result);
+        assert_eq!(arr[8], 2); // Minimum value in range
+    }
+
+    #[test]
+    fn test_recalculate_max() {
+        let mut graph = Graph::new(9);
+        let mut arr = vec![5, 3, 8, 2, 7, 6, 4, 9, 1];
+        let mut formula_array = vec![
+            Formula { op_type: 0, p1: 0, p2: 0 }; 9
+        ];
+        add_formula(&mut graph, 8, 0, 6, 10, &mut formula_array, 3); // MAX over range A1:A3
+        let result = recalculate(&mut graph, 3, &mut arr, 8, &mut formula_array);
+        assert!(result);
+        assert_eq!(arr[8], 5); // Maximum value in range
+    }
+}
+

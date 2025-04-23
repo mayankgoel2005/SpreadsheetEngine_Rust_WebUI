@@ -355,3 +355,42 @@ pub fn recalculate(
     }
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arith_addition() {
+        assert_eq!(arith(10, 5, '+'), 15);
+        assert_eq!(arith(-10, 5, '+'), -5);
+        assert_eq!(arith(i32::MAX, 1, '+'), i32::MAX.wrapping_add(1)); // Wrapping addition
+    }
+
+    #[test]
+    fn test_arith_subtraction() {
+        assert_eq!(arith(10, 5, '-'), 5);
+        assert_eq!(arith(5, 10, '-'), -5);
+        assert_eq!(arith(i32::MIN, 1, '-'), i32::MIN.wrapping_sub(1)); // Wrapping subtraction
+    }
+
+    #[test]
+    fn test_arith_multiplication() {
+        assert_eq!(arith(3, 4, '*'), 12);
+        assert_eq!(arith(-3, 4, '*'), -12);
+        assert_eq!(arith(i32::MAX, 2, '*'), i32::MAX.wrapping_mul(2)); // Wrapping multiplication
+        assert_eq!(arith(i32::MIN, -1, '*'), i32::MIN.wrapping_mul(-1)); // Wrapping multiplication
+    }
+
+    #[test]
+    fn test_arith_division() {
+        assert_eq!(arith(10, 2, '/'), 5);
+        assert_eq!(arith(10, 0, '/'), i32::MIN); // Division by zero
+        assert_eq!(arith(-10, 2, '/'), -5);
+    }
+
+    #[test]
+    fn test_arith_invalid_operation() {
+        assert_eq!(arith(10, 5, '%'), i32::MIN); // Unsupported operator
+    }
+}
