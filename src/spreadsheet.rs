@@ -54,3 +54,24 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
 pub fn print_spreadsheet(spreadsheet: &Spreadsheet) {
     spreadsheet.print();
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::display::printer;
+
+    #[test]
+    fn test_print() {
+        let spreadsheet = initialize_spreadsheet(5, 5);
+        // Ensure the print method runs without panicking
+        spreadsheet.print();
+    }
+
+    #[test]
+    fn test_print_spreadsheet() {
+        let spreadsheet = initialize_spreadsheet(5, 5);
+        // Ensure the print_spreadsheet function runs without panicking
+        print_spreadsheet(&spreadsheet);
+    }
+}
