@@ -3,7 +3,7 @@ all: build
 
 # Build autograder binary with the `autograder` feature
 build:
-	cargo build --release --features autograder --no-default-features
+	RUSTFLAGS="-C opt-level=3" cargo build --release --features autograder --no-default-features
 
 # Run the autograder binary (100×100 grid)
 run: build
@@ -11,7 +11,7 @@ run: build
 
 # Build & serve the WASM extension (no autograder feature)
 extension:
-	trunk build --features wasm
+	RUSTFLAGS="-C opt-level=3" trunk build --features wasm
 	trunk serve --features wasm --open
 
 # Clean everything
