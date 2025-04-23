@@ -4,12 +4,10 @@ use std::{thread, time::Duration};
 use crate::graph::{Graph, Formula, add_formula};
 use crate::input_parser::cell_parser;
 
-/// insert `dest` into the dependents list of `src`, deduplicating
+/// insert dest into the dependents list of src, deduplicating
 #[inline]
-pub fn depend(graph: &mut Graph, src: usize, dest: usize) {
-    if !graph.adj[src].contains(&dest) {
-        graph.adj[src].push(dest);
-    }
+fn depend(g: &mut Graph, src: usize, dst: usize) {
+    g.adj.entry(src).or_default().push(dst);
 }
 
 #[inline]
@@ -19,9 +17,6 @@ fn validate_range(start: i32, end: i32, cols: i32) -> bool {
     !(sr > er || (sr == er && sc > ec))
 }
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  MIN                                                                     */
-/*───────────────────────────────────────────────────────────────────────────*/
 pub fn min_func(
     txt: &str,
     cols: i32,
@@ -67,9 +62,6 @@ pub fn min_func(
     true
 }
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  MAX ­– identical structure, only the reducer changes                    */
-/*───────────────────────────────────────────────────────────────────────────*/
 pub fn max_func(
     txt: &str,
     cols: i32,
@@ -112,9 +104,6 @@ pub fn max_func(
     true
 }
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  AVG                                                                     */
-/*───────────────────────────────────────────────────────────────────────────*/
 pub fn avg_func(
     txt: &str,
     cols: i32,
@@ -159,9 +148,6 @@ pub fn avg_func(
     true
 }
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  SUM ­– straightforward                                                  */
-/*───────────────────────────────────────────────────────────────────────────*/
 pub fn sum_func(
     txt: &str,
     cols: i32,
@@ -204,9 +190,6 @@ pub fn sum_func(
     true
 }
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  STDEV                                                                   */
-/*───────────────────────────────────────────────────────────────────────────*/
 pub fn standard_dev_func(
     txt: &str,
     cols: i32,
@@ -261,9 +244,6 @@ pub fn standard_dev_func(
     true
 }
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  SLEEP                                                                   */
-/*───────────────────────────────────────────────────────────────────────────*/
 pub fn sleep_func(
     txt: &str,
     cols: i32,

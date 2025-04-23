@@ -14,11 +14,12 @@ pub   static mut HAS:   i32 = 0;
 #[inline] fn is_alpha(c: char) -> bool { c.is_ascii_uppercase() }
 #[inline] fn is_digit(c: char) -> bool { c.is_ascii_digit() }
 
-/// Mark `dst` dependent on `src` (no duplicates).
+/// Mark dst dependent on src (no duplicates).
 #[inline]
 fn depend(g: &mut Graph, src: usize, dst: usize) {
-    g.adj[src].push(dst);
+    g.adj.entry(src).or_default().push(dst);
 }
+
 
 /// A1 → 0,0; B3 → col=B (1)*,row=3 (2) → index = row*cols+col
 pub fn cell_parser(s: &str, cols: i32, rows: i32) -> i32 {
@@ -240,6 +241,7 @@ fn arth_op(
 
     // recalc / rollback
     if !recalculate(g, cols, arr, dst, farr) {
+        delete_edge(g, dst, farr, cols as usize);
         unsafe {
             arr[dst] = OLD_VALUE;
             farr[dst] = Formula { op_type: OLD_OP_TYPE, p1: OLD_P1, p2: OLD_P2 };
@@ -279,6 +281,7 @@ fn funct(
     // re‐run recalc on dst
     let dst = cell_parser(&txt[..eq], cols, rows) as usize;
     if !recalculate(g, cols, arr, dst, farr) {
+        delete_edge(g, dst, farr, cols as usize);
         unsafe {
             arr[dst] = OLD_VALUE;
             delete_edge(g, dst, farr, cols as usize);

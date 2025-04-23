@@ -26,7 +26,7 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
         rows,
         cols,
         arr: vec![0; total_cells],
-        graph: Graph::new(rows*cols),
+        graph: Graph::new(),
         formula_array: vec![
             Formula {
                 op_type: 0,

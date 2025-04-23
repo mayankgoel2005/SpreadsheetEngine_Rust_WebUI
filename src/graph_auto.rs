@@ -1,6 +1,9 @@
 // src/graph.rs
 
 use std::collections::VecDeque;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt;
 // use std::i32;
 
 /// A recorded formula:
@@ -17,62 +20,74 @@ pub struct Formula {
     pub p2:     i32,
 }
 
-/// A very simple adjacency list: for each cell index, a Vec of its dependents.
-pub struct Graph {
-    pub adj: Vec<Vec<usize>>,
-}
-
-impl Graph {
-    /// Create a new graph for `size` cells (0..size-1).
-    pub fn new(size: usize) -> Self {
-        Graph { adj: vec![Vec::new(); size] }
+impl fmt::Display for Formula {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Formula {{ op_type: {}, p1: {}, p2: {} }}", self.op_type, self.p1, self.p2)
     }
 }
 
-/// Record a new formula in `formula_array[cell]` and install its dependency edges.
+
+/// A very simple adjacency list: for each cell index, a Vec of its dependents.
+pub struct Graph {
+    pub adj: HashMap<usize, Vec<usize>>,
+}
+
+impl Graph {
+    /// Create a new graph with an initially empty adjacency map.
+    pub fn new() -> Self {
+        Graph {
+            adj: HashMap::new(),
+        }
+    }
+}
+
+/// Record a new formula in formula_array[cell] and install its dependency edges.
 pub fn add_formula(
-    graph:          &mut Graph,
-    cell:           usize,
-    p1:             i32,
-    p2:             i32,
-    op_type:        i32,
-    formula_array:  &mut [Formula],
-    cols: usize,
+    graph:         &mut Graph,
+    cell:          usize,
+    p1:            i32,
+    p2:            i32,
+    op_type:       i32,
+    formula_array: &mut [Formula],
+    cols:          usize,
 ) {
     formula_array[cell] = Formula { op_type, p1, p2 };
+
     match op_type {
         1..=4 => {
             let src = p1 as usize;
-            graph.adj[src].push(cell);
+            graph.adj.entry(src).or_default().push(cell);
         }
         5..=8 => {
             let s1 = p1 as usize;
             let s2 = p2 as usize;
-            graph.adj[s1].push(cell);
-            graph.adj[s2].push(cell);
+            graph.adj.entry(s1).or_default().push(cell);
+            graph.adj.entry(s2).or_default().push(cell);
         }
         9..=13 => {
             let start = p1 as usize;
             let end   = p2 as usize;
             let (sr, sc) = (start / cols, start % cols);
-            let (er, ec) = (end / cols, end % cols);
+            let (er, ec) = (end   / cols, end   % cols);
 
-            // reject true rectangles
+            // Reject rectangles: only allow full row or full column ranges
             if sr != er && sc != ec { return; }
 
             if sc == ec {
-                // vertical
+                // vertical range
                 for r in sr..=er {
                     let src = r * cols + sc;
-                    if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if src != cell {
+                        graph.adj.entry(src).or_default().push(cell);
+                    }
                 }
             } else {
-                // horizontal
+                // horizontal range
                 for c in sc..=ec {
                     let src = sr * cols + c;
-                    if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if src != cell {
+                        graph.adj.entry(src).or_default().push(cell);
+                    }
                 }
             }
         }
@@ -80,7 +95,7 @@ pub fn add_formula(
     }
 }
 
-/// Remove the old edges for whatever formula was in `formula_array[cell]`.
+/// Remove the old edges for whatever formula was in formula_array[cell].
 pub fn delete_edge(
     graph:         &mut Graph,
     cell:          usize,
@@ -91,33 +106,58 @@ pub fn delete_edge(
     match f.op_type {
         1..=4 => {
             let src = f.p1 as usize;
-            graph.adj[src].retain(|&d| d != cell);
+            if let Some(dependents) = graph.adj.get_mut(&src) {
+                dependents.retain(|&d| d != cell);
+                if dependents.is_empty() {
+                    graph.adj.remove(&src);
+                }
+            }
         }
         5..=8 => {
             let s1 = f.p1 as usize;
             let s2 = f.p2 as usize;
-            graph.adj[s1].retain(|&d| d != cell);
-            graph.adj[s2].retain(|&d| d != cell);
+            for src in [s1, s2] {
+                if let Some(dependents) = graph.adj.get_mut(&src) {
+                    dependents.retain(|&d| d != cell);
+                    if dependents.is_empty() {
+                        graph.adj.remove(&src);
+                    }
+                }
+            }
         }
         9..=13 => {
             let start = f.p1 as usize;
             let end   = f.p2 as usize;
             let (sr, sc) = (start / cols, start % cols);
-            let (er, ec) = (end / cols, end % cols);
+            let (er, ec) = (end   / cols, end   % cols);
+
+            if sr != er && sc != ec {
+                return; // skip true rectangles
+            }
 
             if sc == ec {
-                // vertical
+                // vertical range
                 for r in sr..=er {
                     let src = r * cols + sc;
                     if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if let Some(dependents) = graph.adj.get_mut(&src) {
+                        dependents.retain(|&d| d != cell);
+                        if dependents.is_empty() {
+                            graph.adj.remove(&src);
+                        }
+                    }
                 }
             } else {
-                // horizontal
+                // horizontal range
                 for c in sc..=ec {
                     let src = sr * cols + c;
                     if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if let Some(dependents) = graph.adj.get_mut(&src) {
+                        dependents.retain(|&d| d != cell);
+                        if dependents.is_empty() {
+                            graph.adj.remove(&src);
+                        }
+                    }
                 }
             }
         }
@@ -136,54 +176,66 @@ pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
     }
 }
 
-/// Kahn’s algorithm over the **reachable** subgraph starting at `start`.
-/// Returns `None` if a cycle is found; otherwise the topo order.
+/// Kahn’s algorithm over the *reachable* subgraph starting at start.
+/// Returns None if a cycle is found; otherwise the topo order.
 pub fn topological_sort(
-    graph:      &Graph,
-    start:      usize,
-    total_size: usize,
+    graph: &Graph,
+    start: usize,
 ) -> Option<Vec<usize>> {
-    // 1) BFS to mark reachable and count in‑degrees
-    let mut in_degree = vec![0; total_size];
-    let mut reachable = vec![false; total_size];
-    let mut queue     = VecDeque::new();
-    reachable[start] = true;
-    let mut reach=1;
+    // Only store reachable in-degrees
+    let mut in_degree: HashMap<usize, usize> = HashMap::new();
+    let mut reachable: HashSet<usize> = HashSet::new();
+    let mut queue = VecDeque::new();
+
+    // Step 1: Discover reachable nodes and count in-degrees
+    reachable.insert(start);
     queue.push_back(start);
+
     while let Some(u) = queue.pop_front() {
-        for &v in &graph.adj[u] {
-            in_degree[v] += 1;
-            if !reachable[v] {
-                reachable[v] = true;
-                reach+=1;
-                queue.push_back(v);
+        if let Some(neighbors) = graph.adj.get(&u) {
+            for &v in neighbors {
+                *in_degree.entry(v).or_insert(0) += 1;
+                if reachable.insert(v) {
+                    queue.push_back(v);
+                }
             }
         }
     }
 
-    // 2) Kahn’s zero‑queue
-    let mut zero   = VecDeque::new();
+    // Step 2: Kahn’s algorithm using only reachable nodes
+    let mut zero_in = VecDeque::new();
     let mut result = Vec::new();
-    zero.push_back(start);
-    while let Some(u) = zero.pop_front() {
+
+    // Add nodes with zero in-degree
+    for &node in &reachable {
+        if !in_degree.contains_key(&node) {
+            zero_in.push_back(node);
+        }
+    }
+
+    while let Some(u) = zero_in.pop_front() {
         result.push(u);
-        for &v in &graph.adj[u] {
-            in_degree[v] -= 1;
-            if in_degree[v] == 0 {
-                zero.push_back(v);
+        if let Some(neighbors) = graph.adj.get(&u) {
+            for &v in neighbors {
+                if let Some(indeg) = in_degree.get_mut(&v) {
+                    *indeg -= 1;
+                    if *indeg == 0 {
+                        zero_in.push_back(v);
+                    }
+                }
             }
         }
     }
-    if result.len() != reach{
-        // cycle among the reachable nodes
+
+    if result.len() != reachable.len() {
         None
     } else {
         Some(result)
     }
 }
 
-/// Recalculate all formulas downstream of `start_cell` into `arr`.
-/// If a cycle is detected, returns `false` and leaves `arr` untouched.
+/// Recalculate all formulas downstream of start_cell into arr.
+/// If a cycle is detected, returns false and leaves arr untouched.
 pub fn recalculate(
     graph:          &mut Graph,
     cols:           i32,
@@ -191,8 +243,8 @@ pub fn recalculate(
     start_cell:     usize,
     formula_array:  &[Formula],
 ) -> bool {
-    let total_size = arr.len();
-    let sorted = match topological_sort(graph, start_cell, total_size) {
+    let _total_size = arr.len();
+    let sorted = match topological_sort(graph, start_cell) {
         Some(v) => v,
         None    => return false,
     };
