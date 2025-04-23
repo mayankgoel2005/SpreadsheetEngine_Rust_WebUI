@@ -120,6 +120,16 @@
     input:checked + .slider:before {
       transform: translateX(26px);
     }
+
+    #help-box {
+      color: var(--text-color); /* Use the theme's text color */
+      background: var(--bg-color); /* Use the theme's background color */
+    }
+
+    body.dark-mode #help-box {
+      color: var(--text-color); /* Ensure text is visible in dark mode */
+      background: var(--bg-color); /* Ensure background matches dark mode */
+    }
   </style>
 </head>
 <body>
@@ -135,6 +145,32 @@
     <option value="theme-yellow">Yellow</option>
     <option value="dark-mode">Dark Mode</option> <!-- Added Dark Mode option -->
   </select>
+</div>
+
+<div style="position: absolute; top: 20px; right: 200px;">
+  <button id="help-btn">Help</button>
+  <div id="help-box" style="
+    display: none;
+    position: absolute;
+    top: 30px;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    max-width: 300px;
+  ">
+<!--    <h3>Keyboard Shortcuts</h3>-->
+    <ul style="margin: 0; padding: 0; list-style: none;">
+      <li><strong>Ctrl+Z</strong>: Undo</li>
+      <li><strong>Ctrl+Y</strong>: Redo</li>
+      <li><strong>Ctrl+D</strong>: Toggle Dark Mode</li>
+      <li><strong>Ctrl+S</strong>: Download CSV</li>
+      <li><strong>Ctrl+G</strong>: Download Graph</li>
+      <li><strong>Ctrl+Shift+F</strong>: Toggle Full Screen</li>
+    </ul>
+  </div>
 </div>
 
 <div id="spreadsheet-container"></div>
@@ -358,6 +394,21 @@
           await document.exitFullscreen(); // Exit full screen
         }
       }
+    });
+
+    document.getElementById("help-btn").addEventListener("click", (e) => {
+      const helpBox = document.getElementById("help-box");
+      helpBox.style.display = helpBox.style.display === "none" ? "block" : "none";
+      e.stopPropagation(); // Prevent click from propagating to the document
+    });
+
+    document.addEventListener("click", () => {
+      const helpBox = document.getElementById("help-box");
+      helpBox.style.display = "none";
+    });
+
+    document.getElementById("help-box").addEventListener("click", (e) => {
+      e.stopPropagation(); // Prevent click inside the help box from closing it
     });
   }
 
