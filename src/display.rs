@@ -171,7 +171,7 @@ pub fn render_spreadsheet(
                            onblur="handleCellBlur(event)"
                            onkeyup="handleCellKeyup(event)" />
                    </td>"#,
-                cell_label, cell_value
+                cell_label, cell_value // Ensure data-cell is set to the correct cell label
             ));
         }
         output.push_str("</tr>");

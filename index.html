@@ -156,7 +156,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
-  import init, { render_initial_spreadsheet, update_formula, undo, redo, export_csv }
+  import init, { render_initial_spreadsheet, update_formula, undo, redo, export_csv, get_formula }
     from "./lab1.js";
   // --- begin modal helper ---
   function showErrorImage() {
@@ -196,6 +196,20 @@
     const formulaInput = document.getElementById("formula-input");
 
     spreadsheetContainer.innerHTML = render_initial_spreadsheet();
+
+    // Add event listener for cell clicks to display the formula
+    spreadsheetContainer.addEventListener("click", async (e) => {
+      const target = e.target;
+      if (target.tagName === "INPUT" && target.hasAttribute("data-cell")) {
+        const cellId = target.getAttribute("data-cell");
+        try {
+          const formula = await get_formula(cellId); // Fetch the formula from Rust
+          formulaInput.value = formula; // Display it in the formula bar
+        } catch (err) {
+          console.error("Failed to fetch formula:", err);
+        }
+      }
+    });
 
     formulaInput.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {

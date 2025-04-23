@@ -193,6 +193,21 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
     })
 }
 
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn get_formula(cell_id: &str) -> Result<String, wasm_bindgen::prelude::JsValue> {
+    use wasm_bindgen::JsValue;
+
+    SPREADSHEET.with(|s| {
+        let sheet = s.borrow();
+        let cell_index = input_parser::cell_parser(cell_id, sheet.cols as i32, sheet.rows as i32);
+        if cell_index == -1 {
+            return Err(JsValue::from_str("Invalid cell ID"));
+        }
+        let formula = &sheet.formula_strings[cell_index as usize];
+        Ok(formula.clone()) // Return the formula string
+    })
+}
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
@@ -256,3 +271,4 @@ pub fn export_csv() -> String {
         csv_data
     })
 }
+
