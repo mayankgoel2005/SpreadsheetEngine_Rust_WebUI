@@ -3,7 +3,7 @@ all: build
 
 # Build autograder binary with the `autograder` feature
 build:
-	cargo build --release --features autograder
+	cargo build --release --features autograder --no-default-features
 
 # Run the autograder binary (100×100 grid)
 run: build
