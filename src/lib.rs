@@ -154,22 +154,30 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
         // Handle A1=... or A1=B1+C1
         if let Some(eq) = input.find('=') {
             let cell_index = cell_parser(&input[..eq], sheet.cols as i32, sheet.rows as i32) as usize;
-            let old_formula = sheet.formula_strings[cell_index].clone();
-
-            // tentatively set the new formula
-            sheet.formula_strings[cell_index] = input.to_string();
+        
+            let old_formula1 = sheet.formula_strings[cell_index].clone();
+        
 
             // run parser (0 = OK, non-zero = cycle/error)
             let code = input_parser::parser(&mut sheet, input);
             if code != 0 {
                 // error → restore old formula & re-parse it
-                sheet.formula_strings[cell_index] = old_formula.clone();
-                let _ = input_parser::parser(&mut sheet, &old_formula);
+                sheet.formula_strings[cell_index] = old_formula1.clone();
+                let _ = input_parser::parser(&mut sheet, &old_formula1);
                 return Err(JsValue::from_str("Formula error: cycle or invalid input."));
             }
-
-            // SUCCESS → record undo state
-            sheet.undo_stack.push_back((cell_index, old_formula));
+            if sheet.formula_strings[cell_index].is_empty() {
+                let default_formula = format!(
+                    "{}=0",
+                    display::column_index_to_name(cell_index % sheet.cols)
+                        + &((cell_index / sheet.cols) + 1).to_string()
+                );
+                sheet.undo_stack.push_back((cell_index, default_formula));
+            } else {
+                let old_formula = sheet.formula_strings[cell_index].clone();
+                sheet.undo_stack.push_back((cell_index, old_formula));
+            }
+            sheet.formula_strings[cell_index] = input.to_string();
             sheet.redo_stack.clear();
         } else {
             return Err(JsValue::from_str("Invalid formula input"));

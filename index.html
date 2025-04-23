@@ -244,9 +244,17 @@
           return;
         }
 
-        const updatedHTML = await update_formula(formula);
-        if (updatedHTML !== "__IMPORT_EXTERNAL__") {
-          spreadsheetContainer.innerHTML = updatedHTML;
+       
+        
+        try {
+          const updatedHTML = await update_formula(formula);
+
+          if (updatedHTML !== "__IMPORT_EXTERNAL__") {
+            spreadsheetContainer.innerHTML = updatedHTML;
+          }
+        } catch (err) {
+          console.error("Formula error:", err);
+          showErrorImage();
         }
       }
     });
