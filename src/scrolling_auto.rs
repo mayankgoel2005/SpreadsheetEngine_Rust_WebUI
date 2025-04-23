@@ -69,3 +69,81 @@ pub fn scroll_right(spreadsheet: &mut Spreadsheet) {
     let remaining = spreadsheet.cols.saturating_sub(spreadsheet.curr_x + 10);
     spreadsheet.curr_x += remaining.min(10);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spreadsheet::{initialize_spreadsheet, Spreadsheet};
+
+    #[test]
+    fn test_scroll_to() {
+        let mut spreadsheet = initialize_spreadsheet(10, 10);
+        scroll_to(&mut spreadsheet, 5, 5);
+        assert_eq!(spreadsheet.curry, 5);
+        assert_eq!(spreadsheet.curr_x, 5);
+    }
+
+    #[test]
+    fn test_scroller_scroll_to() {
+        let mut spreadsheet = initialize_spreadsheet(10, 10);
+        scroller("scroll_to B2", &mut spreadsheet);
+        assert_eq!(spreadsheet.curry, 1);
+        assert_eq!(spreadsheet.curr_x, 1);
+    }
+
+    #[test]
+    fn test_scroller_invalid_command() {
+        let mut spreadsheet = initialize_spreadsheet(10, 10);
+        scroller("invalid_command", &mut spreadsheet);
+        assert_eq!(spreadsheet.curry, 0);
+        assert_eq!(spreadsheet.curr_x, 0);
+    }
+
+    #[test]
+    fn test_scroll_up() {
+        let mut spreadsheet = initialize_spreadsheet(10, 10);
+        spreadsheet.curry = 5;
+        scroll_up(&mut spreadsheet);
+        assert_eq!(spreadsheet.curry, 0);
+    }
+
+    #[test]
+    fn test_scroll_up2() {
+        let mut spreadsheet = initialize_spreadsheet(100, 100);
+        spreadsheet.curry = 20;
+        scroll_up(&mut spreadsheet);
+        assert_eq!(spreadsheet.curry, 10);
+    }
+
+    #[test]
+    fn test_scroll_down() {
+        let mut spreadsheet = initialize_spreadsheet(100, 100);
+        scroll_down(&mut spreadsheet);
+        assert_eq!(spreadsheet.curry, 10);
+    }
+
+
+
+    #[test]
+    fn test_scroll_left() {
+        let mut spreadsheet = initialize_spreadsheet(10, 10);
+        spreadsheet.curr_x = 5;
+        scroll_left(&mut spreadsheet);
+        assert_eq!(spreadsheet.curr_x, 0);
+    }
+
+    #[test]
+    fn test_scroll_left2() {
+        let mut spreadsheet = initialize_spreadsheet(100, 100);
+        spreadsheet.curr_x = 20;
+        scroll_left(&mut spreadsheet);
+        assert_eq!(spreadsheet.curr_x, 10);
+    }
+
+    #[test]
+    fn test_scroll_right() {
+        let mut spreadsheet = initialize_spreadsheet(100, 100);
+        scroll_right(&mut spreadsheet);
+        assert_eq!(spreadsheet.curr_x, 10);
+    }
+}
