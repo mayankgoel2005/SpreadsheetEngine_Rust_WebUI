@@ -250,16 +250,28 @@
 
         if (formula.startsWith("GRAPH(")) {
           try {
-            const graphPayload = await update_formula(formula);
-            renderGraph(JSON.parse(graphPayload));
+            const rangeMatch = formula.match(/^GRAPH\(([^)]+)\)$/);
+            if (rangeMatch) {
+              const range = rangeMatch[1];
+              const [startCol, startRow, endCol, endRow] = range
+                .match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/)
+                .slice(1)
+                .map((v, i) => (i % 2 === 0 ? v : parseInt(v, 10)));
+
+              // Calculate the starting column index for the graph
+              window.graphStartCol = startCol
+                .split("")
+                .reduce((acc, char) => acc * 26 + (char.charCodeAt(0) - 65 + 1), 0) - 1;
+
+              const graphPayload = await update_formula(formula);
+              renderGraph(JSON.parse(graphPayload));
+            }
           } catch (err) {
             console.error("Graph rendering failed:", err);
           }
           return;
         }
 
-       
-        
         try {
           const updatedHTML = await update_formula(formula);
 
@@ -345,25 +357,53 @@
     graphContainer.innerHTML = '<canvas id="graph-canvas" width="800" height="400"></canvas>';
     const ctx = document.getElementById("graph-canvas").getContext("2d");
 
+    // Generate row labels based on the length of the data
+    const rowLabels = Array.from({ length: data[0].length }, (_, i) => i + 1);
+
+    // Generate column labels based on the starting column index
+    const columnLabels = data.map((_, index) => {
+        let colIndex = index + window.graphStartCol; // Adjust for the starting column
+        let colName = "";
+        do {
+            colName = String.fromCharCode((colIndex % 26) + 65) + colName;
+            colIndex = Math.floor(colIndex / 26) - 1;
+        } while (colIndex >= 0);
+        return colName;
+    });
+
     const datasets = data.map((column, index) => ({
-      label: `Column ${String.fromCharCode(65 + index)}`,
-      data: column,
-      borderColor: `hsl(${index * 60}, 70%, 50%)`,
-      fill: false,
+        label: columnLabels[index], // Use the calculated column name as the dataset label
+        data: column,
+        borderColor: `hsl(${index * 60}, 70%, 50%)`,
+        fill: false,
     }));
 
     new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: Array.from({ length: data[0].length }, (_, i) => i + 1),
-        datasets,
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: "top" },
+        type: "line",
+        data: {
+            labels: rowLabels, // Use row numbers as labels
+            datasets,
         },
-      },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: "top" },
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: "Row Numbers", // Add a title for the x-axis
+                    },
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: "Values", // Add a title for the y-axis
+                    },
+                },
+            },
+        },
     });
   }
 
