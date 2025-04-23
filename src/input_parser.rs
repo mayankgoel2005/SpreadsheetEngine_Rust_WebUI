@@ -268,11 +268,14 @@ fn arth_op(
 
     // recalc / rollback
     if !recalculate(g, cols, arr, dst, farr) {
+        delete_edge(g, dst, farr, cols as usize);
+        // 2) restore the old cell value and formula record
         unsafe {
             arr[dst] = OLD_VALUE;
             farr[dst] = Formula { op_type: OLD_OP_TYPE, p1: OLD_P1, p2: OLD_P2 };
             add_formula(g, dst, OLD_P1, OLD_P2, OLD_OP_TYPE, farr, cols as usize);
         }
+        // 3) re-add the old dependency edges
         return 1;
     }
     0
@@ -307,12 +310,14 @@ fn funct(
     // re‐run recalc on dst
     let dst = cell_parser(&txt[..eq], cols, rows) as usize;
     if !recalculate(g, cols, arr, dst, farr) {
+        delete_edge(g, dst, farr, cols as usize);
+        // 2) restore the old cell value and formula record
         unsafe {
             arr[dst] = OLD_VALUE;
-            delete_edge(g, dst, farr, cols as usize);
             farr[dst] = Formula { op_type: OLD_OP_TYPE, p1: OLD_P1, p2: OLD_P2 };
             add_formula(g, dst, OLD_P1, OLD_P2, OLD_OP_TYPE, farr, cols as usize);
         }
+        // 3) re-add the old dependency edges
         return 1;
     }
     0
@@ -359,4 +364,3 @@ pub fn parser(sheet: &mut Spreadsheet, txt: &str) -> i32 {
         -1 // invalid input
     }
 }
-
