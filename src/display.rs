@@ -186,6 +186,7 @@ pub fn render_spreadsheet(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::Graph;
 
     #[test]
     fn test_column_index_to_name_single_letter() {
@@ -205,5 +206,162 @@ mod tests {
         assert_eq!(column_index_to_name(702), "AAA"); // 702 -> AAA
         assert_eq!(column_index_to_name(703), "AAB"); // 703 -> AAB
     }
-}
 
+    #[test]
+    fn test_render_spreadsheet_basic() {
+        let arr = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let cols = 5;
+        let rows = 2;
+        let output = render_spreadsheet(0, 0, &arr, cols, rows);
+
+        assert!(output.contains(r#"<table border="1" style="border-collapse:collapse;">"#));
+        assert!(output.contains(r#"<th style="padding: 5px;">A</th>"#));
+        assert!(output.contains(r#"<th style="padding: 5px;">B</th>"#));
+        assert!(output.contains(r#"<td style="padding: 5px;">
+                    <input type="text"
+                           data-cell="A1"
+                           value="1""#));
+        assert!(output.contains(r#"<td style="padding: 5px;">
+                    <input type="text"
+                           data-cell="B1"
+                           value="2""#));
+    }
+
+    #[test]
+    fn test_render_spreadsheet_with_error() {
+        let arr = vec![1, i32::MIN, 3, 4, 5, 6, 7, 8, 9, 10];
+        let cols = 5;
+        let rows = 2;
+        let output = render_spreadsheet(0, 0, &arr, cols, rows);
+
+        assert!(output.contains(r#"<td style="padding: 5px;">
+                    <input type="text"
+                           data-cell="B1"
+                           value="ERR""#));
+        assert!(output.contains(r#"<td style="padding: 5px;">
+                    <input type="text"
+                           data-cell="C1"
+                           value="3""#));
+    }
+
+    #[test]
+    fn test_render_spreadsheet_partial_view() {
+        let arr = vec![
+            1, 2, 3, 4, 5, 
+            6, 7, 8, 9, 10, 
+            11, 12, 13, 14, 15,
+        ];
+        let cols = 5;
+        let rows = 3;
+        let output = render_spreadsheet(1, 1, &arr, cols, rows);
+
+        assert!(output.contains(r#"<th style="padding: 5px;">B</th>"#));
+        assert!(output.contains(r#"<th style="padding: 5px;">C</th>"#));
+        assert!(output.contains(r#"<td style="padding: 5px;">
+                    <input type="text"
+                           data-cell="B2"
+                           value="7""#));
+        assert!(output.contains(r#"<td style="padding: 5px;">
+                    <input type="text"
+                           data-cell="C2"
+                           value="8""#));
+    }
+
+    #[test]
+    fn test_scroller_display_scroll_up() {
+        let mut curr_x = 0;
+        let mut curry = 5;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new(100);
+        let arr = vec![0; 100];
+
+        scroller_display("w", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curry, 0); // Scrolled up to the top
+        assert_eq!(curr_x, 0); // No horizontal movement
+    }
+
+    #[test]
+    fn test_scroller_display_scroll_down() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 20;
+        let mut graph = Graph::new(200);
+        let arr = vec![0; 200];
+
+        scroller_display("s", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curry, 10); // Scrolled down by 10 rows
+        assert_eq!(curr_x, 0); // No horizontal movement
+    }
+
+    #[test]
+    fn test_scroller_display_scroll_left() {
+        let mut curr_x = 5;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new(100);
+        let arr = vec![0; 100];
+
+        scroller_display("a", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0); // Scrolled left to the start
+        assert_eq!(curry, 0); // No vertical movement
+    }
+
+    #[test]
+    fn test_scroller_display_scroll_right() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 20;
+        let rows = 10;
+        let mut graph = Graph::new(200);
+        let arr = vec![0; 200];
+
+        scroller_display("d", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 10); // Scrolled right by 10 columns
+        assert_eq!(curry, 0); // No vertical movement
+    }
+
+    #[test]
+    fn test_scroller_display_scroll_to_valid_cell() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new(100);
+        let arr = vec![0; 100];
+
+        scroller_display("scroll_to B2", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0); // Column B
+        assert_eq!(curry, 0); // Row 2
+    }
+
+    #[test]
+    fn test_scroller_display_scroll_to_invalid_cell() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new(100);
+        let arr = vec![0; 100];
+
+        scroller_display("scroll_to Z99", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0); // No change
+        assert_eq!(curry, 0); // No change
+    }
+
+    #[test]
+    fn test_scroller_display_unrecognized_command() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new(100);
+        let arr = vec![0; 100];
+
+        scroller_display("invalid_command", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0); // No change
+        assert_eq!(curry, 0); // No change
+    }
+}

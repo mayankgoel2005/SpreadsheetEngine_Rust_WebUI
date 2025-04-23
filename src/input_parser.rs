@@ -828,4 +828,39 @@ mod tests {
         assert_eq!(arr[2], 15); // C1 = 5 + 10
         assert_eq!(formula_array[2], Formula { op_type: 0, p1: 15, p2: 0 }); // Constant formula
     }
+    #[test]
+    fn test_parse_range_valid() {
+        let cols = 10;
+        let rows = 10;
+
+        // Valid range: A1:B2
+        let result = parse_range("A1:B2", cols, rows);
+        assert!(result.is_some());
+        let range = result.unwrap();
+        assert_eq!(range.start_row, 0);
+        assert_eq!(range.end_row, 1);
+        assert_eq!(range.start_col, 0);
+        assert_eq!(range.end_col, 1);
+    }
+
+    #[test]
+    fn test_parse_range_invalid_format() {
+        let cols = 10;
+        let rows = 10;
+
+        // Invalid range: Missing colon
+        let result = parse_range("A1B2", cols, rows);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_range_out_of_bounds() {
+        let cols = 10;
+        let rows = 10;
+
+        // Out-of-bounds range
+        let result = parse_range("A1:Z10", cols, rows);
+        assert!(result.is_none());
+    }
+
 }
