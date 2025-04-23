@@ -183,3 +183,27 @@ pub fn render_spreadsheet(
     output
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_column_index_to_name_single_letter() {
+        assert_eq!(column_index_to_name(0), "A"); // 0 -> A
+        assert_eq!(column_index_to_name(25), "Z"); // 25 -> Z
+    }
+
+    #[test]
+    fn test_column_index_to_name_double_letter() {
+        assert_eq!(column_index_to_name(26), "AA"); // 26 -> AA
+        assert_eq!(column_index_to_name(51), "AZ"); // 51 -> AZ
+        assert_eq!(column_index_to_name(52), "BA"); // 52 -> BA
+    }
+
+    #[test]
+    fn test_column_index_to_name_triple_letter() {
+        assert_eq!(column_index_to_name(702), "AAA"); // 702 -> AAA
+        assert_eq!(column_index_to_name(703), "AAB"); // 703 -> AAB
+    }
+}
+
