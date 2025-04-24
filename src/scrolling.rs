@@ -1,6 +1,6 @@
-use crate::spreadsheet::Spreadsheet;
 use crate::display::scroller_display;
 use crate::input_parser::cell_parser;
+use crate::spreadsheet::Spreadsheet;
 
 /// Parses a scroll command and updates the spreadsheet’s view accordingly.
 ///
@@ -36,7 +36,7 @@ use crate::input_parser::cell_parser;
 /// ```
 pub fn scroll_to(spreadsheet: &mut Spreadsheet, row: usize, col: usize) {
     spreadsheet.curr_x = col;
-    spreadsheet.curry  = row;
+    spreadsheet.curry = row;
 }
 
 /// Handle commands, including "scroll_to A1"
@@ -45,11 +45,7 @@ pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) {
     if let Some(arg) = cmd.strip_prefix("scroll_to ") {
         let cell = arg.trim();
         // Parse cell reference (e.g., "A1") into index
-        let idx = cell_parser(
-            cell,
-            spreadsheet.cols as i32,
-            spreadsheet.rows as i32,
-        );
+        let idx = cell_parser(cell, spreadsheet.cols as i32, spreadsheet.rows as i32);
         if idx >= 0 {
             let idx = idx as usize;
             let row = idx / spreadsheet.cols;
@@ -104,7 +100,7 @@ pub fn scroll_right(spreadsheet: &mut Spreadsheet) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::spreadsheet::{initialize_spreadsheet, Spreadsheet};
+    use crate::spreadsheet::{Spreadsheet, initialize_spreadsheet};
 
     #[test]
     fn test_scroll_to() {
@@ -152,8 +148,6 @@ mod tests {
         scroll_down(&mut spreadsheet);
         assert_eq!(spreadsheet.curry, 10);
     }
-
-
 
     #[test]
     fn test_scroll_left() {

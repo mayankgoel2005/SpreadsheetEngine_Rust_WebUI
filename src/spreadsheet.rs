@@ -1,5 +1,5 @@
-use crate::graph::{Graph, Formula};
 use crate::display::printer;
+use crate::graph::{Formula, Graph};
 use std::collections::VecDeque;
 /// The core spreadsheet model: a 2D grid of `i32` cells with
 /// dependency tracking and undo/redo history.
@@ -35,7 +35,7 @@ pub struct Spreadsheet {
     pub time: f64,
     pub curr_x: usize,
     pub curry: usize,
-    pub formula_strings: Vec<String>,    // Store formulas as strings
+    pub formula_strings: Vec<String>, // Store formulas as strings
     pub undo_stack: VecDeque<(usize, String)>, // Store previous formulas for undo
     pub redo_stack: VecDeque<(usize, String)>,
 }
@@ -122,7 +122,6 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
 pub fn print_spreadsheet(spreadsheet: &Spreadsheet) {
     spreadsheet.print();
 }
-
 
 #[cfg(test)]
 mod tests {

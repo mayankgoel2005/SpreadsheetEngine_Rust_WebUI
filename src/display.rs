@@ -1,3 +1,5 @@
+use crate::graph::Graph;
+use crate::input_parser::cell_parser;
 /// Print a 10×10 “window” of the spreadsheet, starting at column `curr_x` and row `curry`.
 ///
 /// Prints column-letter headers (A, B, …, AA, …) and up to 10 rows/columns of values
@@ -19,8 +21,6 @@
 /// // this will print columns B–K and rows 3–12 (but sheet is only 5×5, so stops at E5)
 /// ```
 use std::cmp;
-use crate::graph::{Graph};
-use crate::input_parser::cell_parser;
 pub fn printer(curr_x: usize, curry: usize, arr: &[i32], cols: usize, rows: usize) {
     // Print column headers
     print!("      ");
@@ -212,16 +212,18 @@ pub fn render_spreadsheet(
     let mut output = String::new();
 
     // Corrected inline style spacing
-    output.push_str(r#"
+    output.push_str(
+        r#"
         <div id="scroll-container"
              style="max-width: 1020px; max-height: 600px; overflow: auto; border: 1px solid #ccc;">
-    "#);
+    "#,
+    );
 
     // Start the table
     output.push_str(r#"<table border="1" style="border-collapse:collapse;">"#);
 
     // Render column headers (A, B, C...)
-    output.push_str("<tr><th></th>");  // Top-left empty corner
+    output.push_str("<tr><th></th>"); // Top-left empty corner
     for col in 0..cols {
         let col_name = column_index_to_name(col);
         output.push_str(&format!(r#"<th style="padding: 5px;">{}</th>"#, col_name));
@@ -231,7 +233,10 @@ pub fn render_spreadsheet(
     // Render each row
     for row in 0..rows {
         let row_num = row + 1; // Display as 1-indexed
-        output.push_str(&format!(r#"<tr><th style="padding: 5px;">{}</th>"#, row_num));
+        output.push_str(&format!(
+            r#"<tr><th style="padding: 5px;">{}</th>"#,
+            row_num
+        ));
         for col in 0..cols {
             let index = row * cols + col;
             let cell_label = format!("{}{}", column_index_to_name(col), row_num);
@@ -250,7 +255,8 @@ pub fn render_spreadsheet(
                            onblur="handleCellBlur(event)"
                            onkeyup="handleCellKeyup(event)" />
                    </td>"#,
-                cell_label, cell_value // Ensure data-cell is set to the correct cell label
+                cell_label,
+                cell_value // Ensure data-cell is set to the correct cell label
             ));
         }
         output.push_str("</tr>");
@@ -296,14 +302,18 @@ mod tests {
         assert!(output.contains(r#"<table border="1" style="border-collapse:collapse;">"#));
         assert!(output.contains(r#"<th style="padding: 5px;">A</th>"#));
         assert!(output.contains(r#"<th style="padding: 5px;">B</th>"#));
-        assert!(output.contains(r#"<td style="padding: 5px;">
+        assert!(output.contains(
+            r#"<td style="padding: 5px;">
                     <input type="text"
                            data-cell="A1"
-                           value="1""#));
-        assert!(output.contains(r#"<td style="padding: 5px;">
+                           value="1""#
+        ));
+        assert!(output.contains(
+            r#"<td style="padding: 5px;">
                     <input type="text"
                            data-cell="B1"
-                           value="2""#));
+                           value="2""#
+        ));
     }
 
     #[test]
@@ -313,37 +323,41 @@ mod tests {
         let rows = 2;
         let output = render_spreadsheet(0, 0, &arr, cols, rows);
 
-        assert!(output.contains(r#"<td style="padding: 5px;">
+        assert!(output.contains(
+            r#"<td style="padding: 5px;">
                     <input type="text"
                            data-cell="B1"
-                           value="ERR""#));
-        assert!(output.contains(r#"<td style="padding: 5px;">
+                           value="ERR""#
+        ));
+        assert!(output.contains(
+            r#"<td style="padding: 5px;">
                     <input type="text"
                            data-cell="C1"
-                           value="3""#));
+                           value="3""#
+        ));
     }
 
     #[test]
     fn test_render_spreadsheet_partial_view() {
-        let arr = vec![
-            1, 2, 3, 4, 5, 
-            6, 7, 8, 9, 10, 
-            11, 12, 13, 14, 15,
-        ];
+        let arr = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let cols = 5;
         let rows = 3;
         let output = render_spreadsheet(1, 1, &arr, cols, rows);
 
         assert!(output.contains(r#"<th style="padding: 5px;">B</th>"#));
         assert!(output.contains(r#"<th style="padding: 5px;">C</th>"#));
-        assert!(output.contains(r#"<td style="padding: 5px;">
+        assert!(output.contains(
+            r#"<td style="padding: 5px;">
                     <input type="text"
                            data-cell="B2"
-                           value="7""#));
-        assert!(output.contains(r#"<td style="padding: 5px;">
+                           value="7""#
+        ));
+        assert!(output.contains(
+            r#"<td style="padding: 5px;">
                     <input type="text"
                            data-cell="C2"
-                           value="8""#));
+                           value="8""#
+        ));
     }
 
     #[test]
@@ -411,7 +425,15 @@ mod tests {
         let mut graph = Graph::new(100);
         let arr = vec![0; 100];
 
-        scroller_display("scroll_to B2", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        scroller_display(
+            "scroll_to B2",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
         assert_eq!(curr_x, 0); // Column B
         assert_eq!(curry, 0); // Row 2
     }
@@ -425,7 +447,15 @@ mod tests {
         let mut graph = Graph::new(100);
         let arr = vec![0; 100];
 
-        scroller_display("scroll_to Z99", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        scroller_display(
+            "scroll_to Z99",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
         assert_eq!(curr_x, 0); // No change
         assert_eq!(curry, 0); // No change
     }
@@ -439,7 +469,15 @@ mod tests {
         let mut graph = Graph::new(100);
         let arr = vec![0; 100];
 
-        scroller_display("invalid_command", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        scroller_display(
+            "invalid_command",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
         assert_eq!(curr_x, 0); // No change
         assert_eq!(curry, 0); // No change
     }

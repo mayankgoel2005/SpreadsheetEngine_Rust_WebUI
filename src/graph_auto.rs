@@ -1,8 +1,8 @@
 // src/graph.rs
 
-use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::fmt;
 // use std::i32;
 /// graph_auto.rs is for terminal version
@@ -16,16 +16,19 @@ use std::fmt;
 #[derive(Copy, Clone, Debug)]
 pub struct Formula {
     pub op_type: i32,
-    pub p1:     i32,
-    pub p2:     i32,
+    pub p1: i32,
+    pub p2: i32,
 }
 
 impl fmt::Display for Formula {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Formula {{ op_type: {}, p1: {}, p2: {} }}", self.op_type, self.p1, self.p2)
+        write!(
+            f,
+            "Formula {{ op_type: {}, p1: {}, p2: {} }}",
+            self.op_type, self.p1, self.p2
+        )
     }
 }
-
 
 /// A very simple adjacency list: for each cell index, a hashmap of its dependents.
 pub struct Graph {
@@ -72,13 +75,13 @@ impl Graph {
 /// assert_eq!(g.adj.get(&0).unwrap(), &vec![3]);
 /// ```
 pub fn add_formula(
-    graph:         &mut Graph,
-    cell:          usize,
-    p1:            i32,
-    p2:            i32,
-    op_type:       i32,
+    graph: &mut Graph,
+    cell: usize,
+    p1: i32,
+    p2: i32,
+    op_type: i32,
     formula_array: &mut [Formula],
-    cols:          usize,
+    cols: usize,
 ) {
     formula_array[cell] = Formula { op_type, p1, p2 };
 
@@ -95,12 +98,14 @@ pub fn add_formula(
         }
         9..=13 => {
             let start = p1 as usize;
-            let end   = p2 as usize;
+            let end = p2 as usize;
             let (sr, sc) = (start / cols, start % cols);
-            let (er, ec) = (end   / cols, end   % cols);
+            let (er, ec) = (end / cols, end % cols);
 
             // Reject rectangles: only allow full row or full column ranges
-            if sr != er && sc != ec { return; }
+            if sr != er && sc != ec {
+                return;
+            }
 
             if sc == ec {
                 // vertical range
@@ -143,12 +148,7 @@ pub fn add_formula(
 /// delete_edge(&mut g, 3, &formulas, 3);
 /// assert!(!g.adj.contains_key(&0));
 /// ```
-pub fn delete_edge(
-    graph:         &mut Graph,
-    cell:          usize,
-    formula_array: &[Formula],
-    cols:          usize,
-) {
+pub fn delete_edge(graph: &mut Graph, cell: usize, formula_array: &[Formula], cols: usize) {
     let f = formula_array[cell];
     match f.op_type {
         1..=4 => {
@@ -174,9 +174,9 @@ pub fn delete_edge(
         }
         9..=13 => {
             let start = f.p1 as usize;
-            let end   = f.p2 as usize;
+            let end = f.p2 as usize;
             let (sr, sc) = (start / cols, start % cols);
-            let (er, ec) = (end   / cols, end   % cols);
+            let (er, ec) = (end / cols, end % cols);
 
             if sr != er && sc != ec {
                 return; // skip true rectangles
@@ -186,7 +186,9 @@ pub fn delete_edge(
                 // vertical range
                 for r in sr..=er {
                     let src = r * cols + sc;
-                    if src == cell { continue; }
+                    if src == cell {
+                        continue;
+                    }
                     if let Some(dependents) = graph.adj.get_mut(&src) {
                         dependents.retain(|&d| d != cell);
                         if dependents.is_empty() {
@@ -198,7 +200,9 @@ pub fn delete_edge(
                 // horizontal range
                 for c in sc..=ec {
                     let src = sr * cols + c;
-                    if src == cell { continue; }
+                    if src == cell {
+                        continue;
+                    }
                     if let Some(dependents) = graph.adj.get_mut(&src) {
                         dependents.retain(|&d| d != cell);
                         if dependents.is_empty() {
@@ -227,8 +231,14 @@ pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
         '+' => v1.wrapping_add(v2),
         '-' => v1.wrapping_sub(v2),
         '*' => v1.wrapping_mul(v2),
-        '/' => if v2 != 0 { v1 / v2 } else { i32::MIN },
-        _   => i32::MIN,
+        '/' => {
+            if v2 != 0 {
+                v1 / v2
+            } else {
+                i32::MIN
+            }
+        }
+        _ => i32::MIN,
     }
 }
 /// Return a topological ordering of all nodes reachable *from* `start`.  If any cycle is found
@@ -251,10 +261,7 @@ pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
 /// add_formula(&mut g, 1, 2, 0, 1, &mut f, 3);
 /// assert_eq!(topological_sort(&g, 0), None);
 /// ```
-pub fn topological_sort(
-    graph: &Graph,
-    start: usize,
-) -> Option<Vec<usize>> {
+pub fn topological_sort(graph: &Graph, start: usize) -> Option<Vec<usize>> {
     // Only store reachable in-degrees
     let mut in_degree: HashMap<usize, usize> = HashMap::new();
     let mut reachable: HashSet<usize> = HashSet::new();
@@ -327,16 +334,16 @@ pub fn topological_sort(
 /// assert_eq!(sheet.arr[2], 6);
 /// ```
 pub fn recalculate(
-    graph:          &mut Graph,
-    cols:           i32,
-    arr:            &mut [i32],
-    start_cell:     usize,
-    formula_array:  &[Formula],
+    graph: &mut Graph,
+    cols: i32,
+    arr: &mut [i32],
+    start_cell: usize,
+    formula_array: &[Formula],
 ) -> bool {
     let _total_size = arr.len();
     let sorted = match topological_sort(graph, start_cell) {
         Some(v) => v,
-        None    => return false,
+        None => return false,
     };
 
     // make a working copy and zero out all dependents
@@ -358,7 +365,13 @@ pub fn recalculate(
                 if v1 == i32::MIN {
                     arr[c] = i32::MIN;
                 } else {
-                    let op = match f.op_type { 1 => '+', 2 => '-', 3 => '*', 4 => '/', _ => '+' };
+                    let op = match f.op_type {
+                        1 => '+',
+                        2 => '-',
+                        3 => '*',
+                        4 => '/',
+                        _ => '+',
+                    };
                     arr[c] = if op == '/' && v2 == 0 {
                         i32::MIN
                     } else {
@@ -372,7 +385,13 @@ pub fn recalculate(
                 if v1 == i32::MIN || v2 == i32::MIN {
                     arr[c] = i32::MIN;
                 } else {
-                    let op = match f.op_type { 5 => '+', 6 => '-', 7 => '*', 8 => '/', _ => '+' };
+                    let op = match f.op_type {
+                        5 => '+',
+                        6 => '-',
+                        7 => '*',
+                        8 => '/',
+                        _ => '+',
+                    };
                     arr[c] = if op == '/' && v2 == 0 {
                         i32::MIN
                     } else {
@@ -383,27 +402,29 @@ pub fn recalculate(
             9..=13 => {
                 // ranges
                 let start = f.p1 as usize;
-                let end   = f.p2 as usize;
+                let end = f.p2 as usize;
                 let sr = start / cols as usize;
                 let sc = start % cols as usize;
-                let er = end   / cols as usize;
-                let ec = end   % cols as usize;
+                let er = end / cols as usize;
+                let ec = end % cols as usize;
 
                 let mut cnt = 0;
                 let mut sum = 0;
-                let mut mn  = i32::MAX;
-                let mut mx  = i32::MIN;
+                let mut mn = i32::MAX;
+                let mut mx = i32::MIN;
                 let mut sd_acc = 0.0;
                 let mut err = false;
-                let mut sum_sq=0;
+                let mut sum_sq = 0;
                 for r in sr..=er {
                     for col in sc..=ec {
                         let idx = r * cols as usize + col;
-                        let v   = arr[idx];
-                        if v == i32::MIN { err = true }
+                        let v = arr[idx];
+                        if v == i32::MIN {
+                            err = true
+                        }
                         cnt += 1;
                         sum += v;
-                        sum_sq+=v*v;
+                        sum_sq += v * v;
                         mn = mn.min(v);
                         mx = mx.max(v);
                     }
@@ -413,13 +434,14 @@ pub fn recalculate(
                     arr[c] = i32::MIN;
                 } else {
                     arr[c] = match f.op_type {
-                        9  => mn,
+                        9 => mn,
                         10 => mx,
                         11 => sum / cnt,
                         12 => sum,
                         13 => {
-                            let avg = sum/cnt;
-                            let variance = ((sum_sq - 2 * sum * avg + avg * avg * cnt) as f64) / (cnt as f64);
+                            let avg = sum / cnt;
+                            let variance =
+                                ((sum_sq - 2 * sum * avg + avg * avg * cnt) as f64) / (cnt as f64);
                             variance.sqrt().round() as i32
                         }
                         _ => unreachable!(),

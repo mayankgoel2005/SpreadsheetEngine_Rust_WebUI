@@ -11,26 +11,31 @@
 //! - `0` on successful parse and evaluation
 //! - `1` on any error (parse error, invalid cell, cycle detection, etc.)
 
+use crate::functions::{avg_func, max_func, min_func, sleep_func, standard_dev_func, sum_func};
+use crate::graph::{Formula, Graph, add_formula, arith, delete_edge, recalculate};
 use crate::spreadsheet::Spreadsheet;
-use crate::graph::{Graph, Formula, arith, add_formula, delete_edge, recalculate};
-use crate::functions::{max_func, sum_func, standard_dev_func, avg_func, min_func, sleep_func};
 
 /// Save+restore on rollback
-static mut OLD_VALUE:   i32 = 0;
+static mut OLD_VALUE: i32 = 0;
 static mut OLD_OP_TYPE: i32 = 0;
-static mut OLD_P1:      i32 = 0;
-static mut OLD_P2:      i32 = 0;
-pub   static mut HAS:   i32 = 0;
+static mut OLD_P1: i32 = 0;
+static mut OLD_P2: i32 = 0;
+pub static mut HAS: i32 = 0;
 
-#[inline] fn is_alpha(c: char) -> bool { c.is_ascii_uppercase() }
-#[inline] fn is_digit(c: char) -> bool { c.is_ascii_digit() }
+#[inline]
+fn is_alpha(c: char) -> bool {
+    c.is_ascii_uppercase()
+}
+#[inline]
+fn is_digit(c: char) -> bool {
+    c.is_ascii_digit()
+}
 
 /// Mark dst dependent on src (no duplicates).
 #[inline]
 fn depend(g: &mut Graph, src: usize, dst: usize) {
     g.adj.entry(src).or_default().push(dst);
 }
-
 
 /// A1 → 0,0; B3 → col=B (1)*,row=3 (2) → index = row*cols+col
 pub fn cell_parser(s: &str, cols: i32, rows: i32) -> i32 {
@@ -39,7 +44,9 @@ pub fn cell_parser(s: &str, cols: i32, rows: i32) -> i32 {
     let mut seen_digit = false;
     for ch in s.chars() {
         if is_alpha(ch) {
-            if seen_digit { return -1; }
+            if seen_digit {
+                return -1;
+            }
             col = col * 26 + (ch as i32 - 'A' as i32 + 1);
         } else if is_digit(ch) {
             row = row * 10 + (ch as i32 - '0' as i32);
@@ -48,7 +55,8 @@ pub fn cell_parser(s: &str, cols: i32, rows: i32) -> i32 {
             return -1;
         }
     }
-    col -= 1;  row -= 1;
+    col -= 1;
+    row -= 1;
     if col < 0 || row < 0 || col >= cols || row >= rows {
         -1
     } else {
@@ -64,7 +72,7 @@ fn return_optype(op: char) -> i32 {
         '-' => 2,
         '*' => 3,
         '/' => 4,
-        _   => i32::MIN,
+        _ => i32::MIN,
     }
 }
 
@@ -73,9 +81,9 @@ fn value_func(
     txt: &str,
     cols: i32,
     rows: i32,
-    eq : usize,
+    eq: usize,
     arr: &mut [i32],
-    g  : &mut Graph,
+    g: &mut Graph,
     farr: &mut [Formula],
 ) -> i32 {
     let dst = cell_parser(&txt[..eq], cols, rows);
@@ -84,10 +92,10 @@ fn value_func(
     }
     /* save old */
     unsafe {
-        OLD_VALUE   = arr[dst as usize];
+        OLD_VALUE = arr[dst as usize];
         OLD_OP_TYPE = farr[dst as usize].op_type;
-        OLD_P1      = farr[dst as usize].p1;
-        OLD_P2      = farr[dst as usize].p2;
+        OLD_P1 = farr[dst as usize].p1;
+        OLD_P2 = farr[dst as usize].p2;
     }
 
     if farr[dst as usize].op_type > 0 {
@@ -104,7 +112,11 @@ fn value_func(
     }
 
     let rhs = txt[it..].trim();
-    let is_cell = rhs.bytes().next().map(|b: u8| b.is_ascii_uppercase()).unwrap_or(false);
+    let is_cell = rhs
+        .bytes()
+        .next()
+        .map(|b: u8| b.is_ascii_uppercase())
+        .unwrap_or(false);
 
     let val;
     if is_cell {
@@ -114,14 +126,26 @@ fn value_func(
         }
         depend(g, src as usize, dst as usize);
 
-        val = if neg { -arr[src as usize] } else { arr[src as usize] };
-        add_formula(g, dst as usize, src, if neg { -1 } else { 0 }, if neg { 3 } else { 1 }, farr, cols as usize);
+        val = if neg {
+            -arr[src as usize]
+        } else {
+            arr[src as usize]
+        };
+        add_formula(
+            g,
+            dst as usize,
+            src,
+            if neg { -1 } else { 0 },
+            if neg { 3 } else { 1 },
+            farr,
+            cols as usize,
+        );
     } else {
         match rhs.parse::<i32>() {
             Ok(v) => val = if neg { -v } else { v },
             Err(_) => {
                 return 1;
-            },
+            }
         }
         add_formula(g, dst as usize, val, 0, 0, farr, cols as usize);
     }
@@ -133,8 +157,20 @@ fn value_func(
         delete_edge(g, dst as usize, farr, cols as usize);
         unsafe {
             arr[dst as usize] = OLD_VALUE;
-            farr[dst as usize] = Formula { op_type: OLD_OP_TYPE, p1: OLD_P1, p2: OLD_P2 };
-            add_formula(g, dst as usize, OLD_P1, OLD_P2, OLD_OP_TYPE, farr, cols as usize);
+            farr[dst as usize] = Formula {
+                op_type: OLD_OP_TYPE,
+                p1: OLD_P1,
+                p2: OLD_P2,
+            };
+            add_formula(
+                g,
+                dst as usize,
+                OLD_P1,
+                OLD_P2,
+                OLD_OP_TYPE,
+                farr,
+                cols as usize,
+            );
         }
         return 1;
     }
@@ -147,29 +183,32 @@ fn arth_op(
     rows: i32,
     eq: usize,
     arr: &mut [i32],
-    g:   &mut Graph,
-    farr:&mut [Formula],
+    g: &mut Graph,
+    farr: &mut [Formula],
 ) -> i32 {
     // find operator
     let mut op_ind = None;
-    let mut op_ch  = '+';
+    let mut op_ch = '+';
     let mut seen_operand = false;
-    for (i, ch) in txt[eq+1..].char_indices() {
+    for (i, ch) in txt[eq + 1..].char_indices() {
         if "+-*/".contains(ch) {
             if seen_operand {
                 op_ind = Some(eq + 1 + i);
-                op_ch  = ch;
+                op_ch = ch;
                 break;
             }
         } else if !ch.is_whitespace() {
             seen_operand = true;
         }
     }
-    let op_ind = match op_ind { Some(i) => i, None => return 1 };
+    let op_ind = match op_ind {
+        Some(i) => i,
+        None => return 1,
+    };
 
     // split operands
-    let left_s  = txt[eq+1..op_ind].trim();
-    let right_s = txt[op_ind+1..].trim();
+    let left_s = txt[eq + 1..op_ind].trim();
+    let right_s = txt[op_ind + 1..].trim();
 
     // parse left
     let (lneg, left_s) = if let Some(stripped) = left_s.strip_prefix('-') {
@@ -191,7 +230,9 @@ fn arth_op(
     } else {
         left_s.parse::<i32>().unwrap_or(i32::MIN)
     };
-    if left_val == i32::MIN  { return 1 }
+    if left_val == i32::MIN {
+        return 1;
+    }
     let left_val = if lneg { -left_val } else { left_val };
 
     // parse right
@@ -218,23 +259,26 @@ fn arth_op(
     } else {
         right_s.parse::<i32>().unwrap_or(i32::MIN)
     };
-    
-    if right_val == i32::MIN { return 1 }
 
+    if right_val == i32::MIN {
+        return 1;
+    }
 
     right_val = if rneg { -right_val } else { right_val };
 
     // dst
     let dst = cell_parser(&txt[..eq], cols, rows);
-    if dst < 0 { return 1 }
+    if dst < 0 {
+        return 1;
+    }
     let dst = dst as usize;
 
     // stash/rollback
     unsafe {
-        OLD_VALUE   = arr[dst];
+        OLD_VALUE = arr[dst];
         OLD_OP_TYPE = farr[dst].op_type;
-        OLD_P1      = farr[dst].p1;
-        OLD_P2      = farr[dst].p2;
+        OLD_P1 = farr[dst].p1;
+        OLD_P2 = farr[dst].p2;
     }
     if farr[dst].op_type > 0 {
         delete_edge(g, dst, farr, cols as usize);
@@ -245,26 +289,26 @@ fn arth_op(
 
     // record dependencies & formula
     let base_op = return_optype(op_ch);
-    if base_op==i32::MIN {
+    if base_op == i32::MIN {
         return 1;
     }
     let (p1, p2, op_type) = match (left_is_cell, right_is_cell) {
-        (true,  true ) => {
-            let p1 = left_val.abs() ; // left index stored
-            let p2 = right_val.abs() ;
+        (true, true) => {
+            let p1 = left_val.abs(); // left index stored
+            let p2 = right_val.abs();
             depend(g, p1 as usize, dst);
             depend(g, p2 as usize, dst);
-            (p1, p2, base_op + 4)       // cell+cell => ops 5..8
+            (p1, p2, base_op + 4) // cell+cell => ops 5..8
         }
-        (true,  false) => {
-            let p1 = left_val.abs() ;
+        (true, false) => {
+            let p1 = left_val.abs();
             let p2 = right_val;
             depend(g, p1 as usize, dst);
-            (p1, p2, base_op)           // cell+lit => ops 1..4
+            (p1, p2, base_op) // cell+lit => ops 1..4
         }
         (false, true) => {
             let p1 = right_val.abs(); // B1
-            let p2 = left_val;        // 10
+            let p2 = left_val; // 10
             depend(g, p1 as usize, dst);
             (p1, p2, base_op) // ❗ Use base_op, NOT base_op + 4
         }
@@ -272,7 +316,11 @@ fn arth_op(
             // pure literal+literal → constant
             arr[dst] = result;
             add_formula(g, dst, result, 0, 0, farr, cols as usize);
-            return if recalculate(g, cols, arr, dst, farr) { 0 } else { 1 };
+            return if recalculate(g, cols, arr, dst, farr) {
+                0
+            } else {
+                1
+            };
         }
     };
     arr[dst] = result;
@@ -283,7 +331,11 @@ fn arth_op(
         delete_edge(g, dst, farr, cols as usize);
         unsafe {
             arr[dst] = OLD_VALUE;
-            farr[dst] = Formula { op_type: OLD_OP_TYPE, p1: OLD_P1, p2: OLD_P2 };
+            farr[dst] = Formula {
+                op_type: OLD_OP_TYPE,
+                p1: OLD_P1,
+                p2: OLD_P2,
+            };
             add_formula(g, dst, OLD_P1, OLD_P2, OLD_OP_TYPE, farr, cols as usize);
         }
         return 1;
@@ -296,15 +348,17 @@ fn funct(
     txt: &str,
     cols: i32,
     rows: i32,
-    eq:  usize,
+    eq: usize,
     arr: &mut [i32],
-    g:   &mut Graph,
-    farr:&mut [Formula],
+    g: &mut Graph,
+    farr: &mut [Formula],
 ) -> i32 {
-    let rhs = &txt[eq+1..].trim();
+    let rhs = &txt[eq + 1..].trim();
 
-let (func_name, func_handler): (&str, fn(&str, i32, i32, usize, &mut [i32], &mut Graph, &mut [Formula]) -> bool) =
-    if rhs.starts_with("MIN(") && rhs.ends_with(')') {
+    let (func_name, func_handler): (
+        &str,
+        fn(&str, i32, i32, usize, &mut [i32], &mut Graph, &mut [Formula]) -> bool,
+    ) = if rhs.starts_with("MIN(") && rhs.ends_with(')') {
         ("MIN", min_func)
     } else if rhs.starts_with("MAX(") && rhs.ends_with(')') {
         ("MAX", max_func)
@@ -331,7 +385,11 @@ let (func_name, func_handler): (&str, fn(&str, i32, i32, usize, &mut [i32], &mut
         delete_edge(g, dst, farr, cols as usize);
         unsafe {
             arr[dst] = OLD_VALUE;
-            farr[dst] = Formula { op_type: OLD_OP_TYPE, p1: OLD_P1, p2: OLD_P2 };
+            farr[dst] = Formula {
+                op_type: OLD_OP_TYPE,
+                p1: OLD_P1,
+                p2: OLD_P2,
+            };
             add_formula(g, dst, OLD_P1, OLD_P2, OLD_OP_TYPE, farr, cols as usize);
         }
         return 1;
@@ -343,8 +401,8 @@ let (func_name, func_handler): (&str, fn(&str, i32, i32, usize, &mut [i32], &mut
 pub fn parser(sheet: &mut Spreadsheet, txt: &str) -> i32 {
     let cols = sheet.cols as i32;
     let rows = sheet.rows as i32;
-    let arr  = &mut sheet.arr;
-    let g    = &mut sheet.graph;
+    let arr = &mut sheet.arr;
+    let g = &mut sheet.graph;
     let farr = &mut sheet.formula_array;
 
     let eq_indices: Vec<_> = txt.match_indices('=').collect();
@@ -352,21 +410,28 @@ pub fn parser(sheet: &mut Spreadsheet, txt: &str) -> i32 {
         return -1; // invalid if not exactly one '='
     }
     let (eq, _) = eq_indices[0];
-    if txt[eq..].starts_with("==") || txt[eq..].starts_with(">=") || txt[eq..].starts_with("<=") || txt[eq..].starts_with("!=") {
+    if txt[eq..].starts_with("==")
+        || txt[eq..].starts_with(">=")
+        || txt[eq..].starts_with("<=")
+        || txt[eq..].starts_with("!=")
+    {
         return -1;
     }
-    if eq == usize::MAX { return -1 }
+    if eq == usize::MAX {
+        return -1;
+    }
 
     // classify
-    let rhs = &txt[eq+1..].trim();
+    let rhs = &txt[eq + 1..].trim();
     let is_func = rhs.contains('(');
 
     // Check if it's a simple value (numeric or cell reference)
     let is_val = if let Some(first_char) = rhs.chars().next() {
-        let is_single_term = rhs.chars()
+        let is_single_term = rhs
+            .chars()
             .skip(match first_char {
                 '+' | '-' => 1, // skip optional sign
-                _ => 0
+                _ => 0,
             })
             .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase());
 

@@ -13,8 +13,8 @@
 //! assert_eq!(sheet.arr.len(), 5 * 10);
 //! assert!(sheet.arr.iter().all(|&cell| cell == 0));
 //! ```
-use std::cell::RefCell;
 use crate::input_parser::cell_parser;
+use std::cell::RefCell;
 // Only include wasm-bindgen if the "wasm" feature is enabled
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -24,7 +24,6 @@ use wasm_bindgen::prelude::*;
 // ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
 #[path = "spreadsheet_auto.rs"]
-
 // ────────────────────────────────────────────────────────────────
 // Core modules (auto / non‐auto via feature flag)
 // ────────────────────────────────────────────────────────────────
@@ -74,12 +73,12 @@ mod spreadsheet_auto;
 // ────────────────────────────────────────────────────────────────
 // Re-exports at the crate root
 // ────────────────────────────────────────────────────────────────
-pub use spreadsheet::{initialize_spreadsheet, print_spreadsheet, Spreadsheet};
 pub use display::{printer, render_spreadsheet};
+pub use functions::{avg_func, max_func, min_func, sleep_func, standard_dev_func, sum_func};
+pub use graph::{add_formula, arith, delete_edge, recalculate, topological_sort};
 pub use input_parser::parser as parse_input;
-pub use graph::{add_formula, delete_edge, recalculate, topological_sort, arith};
-pub use functions::{min_func, max_func, sum_func, avg_func, standard_dev_func, sleep_func};
-pub use scrolling::{scroller, scroll_to, scroll_up, scroll_down, scroll_left, scroll_right};
+pub use scrolling::{scroll_down, scroll_left, scroll_right, scroll_to, scroll_up, scroller};
+pub use spreadsheet::{Spreadsheet, initialize_spreadsheet, print_spreadsheet};
 
 // Global spreadsheet state stored as thread-local storage.
 thread_local! {
@@ -165,10 +164,10 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
         // Handle A1=... or A1=B1+C1
         // Handle A1=... or A1=B1+C1
         if let Some(eq) = input.find('=') {
-            let cell_index = cell_parser(&input[..eq], sheet.cols as i32, sheet.rows as i32) as usize;
-        
+            let cell_index =
+                cell_parser(&input[..eq], sheet.cols as i32, sheet.rows as i32) as usize;
+
             let old_formula1 = sheet.formula_strings[cell_index].clone();
-        
 
             // run parser (0 = OK, non-zero = cycle/error)
             let code = input_parser::parser(&mut sheet, input);
@@ -283,4 +282,3 @@ pub fn export_csv() -> String {
         csv_data
     })
 }
-

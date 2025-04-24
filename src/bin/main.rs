@@ -23,9 +23,7 @@ fn main() {
     use std::time::Instant;
 
     // Import modules from your library (the name here must match the package name in Cargo.toml)
-    use lab1::{
-        spreadsheet, display, input_parser, scrolling,
-    };
+    use lab1::{display, input_parser, scrolling, spreadsheet};
 
     // Original CLI code from your previous main.rs:
     let args: Vec<String> = env::args().collect();
@@ -72,7 +70,10 @@ fn main() {
         input.clear();
 
         if io::stdin().read_line(&mut input).is_err() {
-            eprintln!("[{:.1}] (Error reading input)", global_start.elapsed().as_secs_f64());
+            eprintln!(
+                "[{:.1}] (Error reading input)",
+                global_start.elapsed().as_secs_f64()
+            );
             break;
         }
         let trimmed = input.trim();

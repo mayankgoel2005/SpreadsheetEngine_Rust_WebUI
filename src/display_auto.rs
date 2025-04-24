@@ -1,3 +1,5 @@
+use crate::graph::Graph;
+use crate::input_parser::cell_parser;
 /// Print a 10×10 “window” of the spreadsheet, starting at column `curr_x` and row `curry`.
 ///
 /// Prints column-letter headers (A, B, …, AA, …) and up to 10 rows/columns of values
@@ -19,8 +21,6 @@
 /// // this will print columns B–K and rows 3–12 (but sheet is only 5×5, so stops at E5)
 /// ```
 use std::cmp;
-use crate::graph::{Graph};
-use crate::input_parser::cell_parser;
 pub fn printer(curr_x: usize, curry: usize, arr: &[i32], cols: usize, rows: usize) {
     // Print column headers
     print!("      ");
@@ -221,8 +221,8 @@ pub fn render_spreadsheet(
     output.push_str(r#"<table border="1" style="border-collapse:collapse;">"#);
 
     // Render column headers (top row)
-    output.push_str("<tr><th></th>");  // Top-left empty corner
-    
+    output.push_str("<tr><th></th>"); // Top-left empty corner
+
     for col in 0..cols {
         let col_name = column_index_to_name(col);
         output.push_str(&format!(r#"<th style="padding: 5px;">{}</th>"#, col_name));
@@ -232,7 +232,10 @@ pub fn render_spreadsheet(
     // Render each row
     for row in 0..rows {
         let row_num = row + 1; // Display as 1-indexed
-        output.push_str(&format!(r#"<tr><th style="padding: 5px;">{}</th>"#, row_num));
+        output.push_str(&format!(
+            r#"<tr><th style="padding: 5px;">{}</th>"#,
+            row_num
+        ));
         for col in 0..cols {
             let index = row * cols + col;
             let cell_label = format!("{}{}", column_index_to_name(col), row_num);

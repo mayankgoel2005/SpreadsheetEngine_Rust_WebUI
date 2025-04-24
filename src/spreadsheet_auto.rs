@@ -1,5 +1,5 @@
-use crate::graph::{Graph, Formula};
 use crate::display::printer;
+use crate::graph::{Formula, Graph};
 
 pub struct Spreadsheet {
     pub rows: usize,
