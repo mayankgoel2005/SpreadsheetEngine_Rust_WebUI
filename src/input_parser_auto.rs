@@ -344,6 +344,7 @@ fn arth_op(
 }
 
 /// Dispatch SUM/AVG/MIN/.../SLEEP
+#[allow(unused_variables)]
 fn funct(
     txt: &str,
     cols: i32,

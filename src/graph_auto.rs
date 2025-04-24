@@ -333,6 +333,8 @@ pub fn topological_sort(graph: &Graph, start: usize) -> Option<Vec<usize>> {
 /// assert!(recalculate(&mut sheet.graph, 3, &mut sheet.arr, 2, &sheet.formula_array));
 /// assert_eq!(sheet.arr[2], 6);
 /// ```
+#[allow(unused_variables)]
+#[allow(unused_mut)]
 pub fn recalculate(
     graph: &mut Graph,
     cols: i32,

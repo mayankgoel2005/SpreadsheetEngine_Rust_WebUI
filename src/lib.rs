@@ -28,7 +28,7 @@ use wasm_bindgen::prelude::*;
 // Core modules (auto / non‐auto via feature flag)
 // ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
-#[path = "spreadsheet_auto.rs"]
+// #[path = "spreadsheet_auto.rs"]
 pub mod spreadsheet;
 #[cfg(not(feature = "autograder"))]
 #[path = "spreadsheet.rs"]
