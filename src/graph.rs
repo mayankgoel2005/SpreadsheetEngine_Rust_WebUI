@@ -1172,4 +1172,87 @@ mod tests {
             assert!(!graph.adj.contains_key(&src));
         }
     }
+
+    #[test]
+    fn test_topological_sort_in_degree_decrement() {
+        let mut graph = Graph::new();
+
+        // Create a graph with dependencies: 0 → 1 → 2
+        graph.adj.insert(0, vec![1]);
+        graph.adj.insert(1, vec![2]);
+
+        // Perform topological sort starting from node 0
+        let result = topological_sort(&graph, 0);
+
+        // Assert the result is correct
+        assert_eq!(result, Some(vec![0, 1, 2]));
+    }
+
+    #[test]
+    fn test_recalculate_division_by_zero2() {
+        let mut graph = Graph::new();
+        let mut arr = vec![10, 0, 0]; // A1 = 10, B1 = 0
+        let formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 10,
+                p2: 0,
+            },
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0,
+            },
+            Formula {
+                op_type: 8, // Division operation
+                p1: 0,
+                p2: 1,
+            },
+        ];
+
+        // Add dependencies
+        graph.adj.entry(0).or_default().push(2);
+        graph.adj.entry(1).or_default().push(2);
+
+        // Recalculate
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+
+        // Assert
+        assert!(result);
+        assert_eq!(arr[2], i32::MIN); // Division by zero should result in i32::MIN
+    }
+
+    #[test]
+    fn test_recalculate_invalid_operation() {
+        let mut graph = Graph::new();
+        let mut arr = vec![i32::MIN, 5, 0]; // A1 = i32::MIN, B1 = 5
+        let formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: i32::MIN,
+                p2: 0,
+            },
+            Formula {
+                op_type: 0,
+                p1: 5,
+                p2: 0,
+            },
+            Formula {
+                op_type: 1, // Addition operation
+                p1: 0,
+                p2: 5,
+            },
+        ];
+
+        // Add dependencies
+        graph.adj.entry(0).or_default().push(2);
+        graph.adj.entry(1).or_default().push(2);
+
+        // Recalculate
+        let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
+
+        // Assert
+        assert!(result);
+        assert_eq!(arr[2], i32::MIN); // Invalid operation should propagate i32::MIN
+    }
 }
