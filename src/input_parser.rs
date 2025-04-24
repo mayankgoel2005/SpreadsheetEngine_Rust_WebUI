@@ -451,7 +451,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -487,7 +487,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -524,7 +524,7 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         arr[1] = 50; // B1 = 50
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -553,7 +553,7 @@ mod tests {
                 p2: 0
             }
         );
-        assert_eq!(graph.adj[1], vec![0, 0]); // B1 depends on A1
+        assert_eq!(graph.adj[&1], vec![0, 0]); // B1 depends on A1
     }
 
     #[test]
@@ -562,7 +562,7 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         arr[1] = 50; // B1 = 50
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -591,7 +591,7 @@ mod tests {
                 p2: -1
             }
         );
-        assert_eq!(graph.adj[1], vec![0, 0]); // B1 depends on A1
+        assert_eq!(graph.adj[&1], vec![0, 0]); // B1 depends on A1
     }
 
     #[test]
@@ -599,7 +599,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -635,7 +635,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -672,7 +672,7 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         arr[1] = 50; // B1 = 50
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 1,
@@ -701,7 +701,7 @@ mod tests {
                 p2: 0
             }
         );
-        assert!(graph.adj[1].is_empty()); // Old dependency removed
+        assert!(!graph.adj.contains_key(&1));
     }
 
     #[test]
@@ -711,7 +711,7 @@ mod tests {
         let mut arr = vec![0; 100];
         arr[0] = 10; // A1 = 10
         arr[1] = 20; // B1 = 20
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -740,8 +740,8 @@ mod tests {
                 p2: 1
             }
         );
-        assert_eq!(graph.adj[0], vec![2, 2]);
-        assert_eq!(graph.adj[1], vec![2, 2]);
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
     }
 
     #[test]
@@ -751,7 +751,7 @@ mod tests {
         let mut arr = vec![0; 100];
         arr[0] = 30; // A1 = 30
         arr[1] = 10; // B1 = 10
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -780,8 +780,8 @@ mod tests {
                 p2: 1
             }
         );
-        assert_eq!(graph.adj[0], vec![2, 2]);
-        assert_eq!(graph.adj[1], vec![2, 2]);
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
     }
 
     #[test]
@@ -791,7 +791,7 @@ mod tests {
         let mut arr = vec![0; 100];
         arr[0] = 5; // A1 = 5
         arr[1] = 4; // B1 = 4
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -820,8 +820,8 @@ mod tests {
                 p2: 1
             }
         );
-        assert_eq!(graph.adj[0], vec![2, 2]);
-        assert_eq!(graph.adj[1], vec![2, 2]);
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
     }
 
     #[test]
@@ -831,7 +831,7 @@ mod tests {
         let mut arr = vec![0; 100];
         arr[0] = 20; // A1 = 20
         arr[1] = 4; // B1 = 4
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -860,8 +860,8 @@ mod tests {
                 p2: 1
             }
         );
-        assert_eq!(graph.adj[0], vec![2, 2]);
-        assert_eq!(graph.adj[1], vec![2, 2]);
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
     }
 
     #[test]
@@ -871,7 +871,7 @@ mod tests {
         let mut arr = vec![0; 100];
         arr[0] = 20; // A1 = 20
         arr[1] = 0; // B1 = 0
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -900,8 +900,8 @@ mod tests {
                 p2: 1
             }
         );
-        assert_eq!(graph.adj[0], vec![2, 2]);
-        assert_eq!(graph.adj[1], vec![2, 2]);
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
     }
 
     #[test]
@@ -910,7 +910,7 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         arr[0] = 10; // A1 = 10
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -939,7 +939,7 @@ mod tests {
                 p2: 5
             }
         );
-        assert_eq!(graph.adj[0], vec![2, 2]);
+        assert_eq!(graph.adj[&0], vec![2, 2]);
     }
 
     #[test]
@@ -947,7 +947,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -986,7 +986,7 @@ mod tests {
         arr[0] = 5; // A1
         arr[1] = 3; // B1
         arr[2] = 8; // C1
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1017,7 +1017,7 @@ mod tests {
         arr[0] = 5; // A1
         arr[1] = 3; // B1
         arr[2] = 8; // C1
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1048,7 +1048,7 @@ mod tests {
         arr[0] = 5; // A1
         arr[1] = 3; // B1
         arr[2] = 8; // C1
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1079,7 +1079,7 @@ mod tests {
         arr[0] = 5; // A1
         arr[1] = 3; // B1
         arr[2] = 8; // C1
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1110,7 +1110,7 @@ mod tests {
         arr[0] = 5; // A1
         arr[1] = 3; // B1
         arr[2] = 8; // C1
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1138,7 +1138,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1167,7 +1167,7 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         arr[0] = 2; // A1
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1195,7 +1195,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1336,7 +1336,7 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         arr[1] = 20; // B1 = 20
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,
@@ -1365,7 +1365,7 @@ mod tests {
                 p2: 5
             }
         );
-        assert_eq!(graph.adj[1], vec![2, 2]); // B1 depends on C1
+        assert_eq!(graph.adj[&1], vec![2, 2]); // B1 depends on C1
     }
 
     #[test]
@@ -1373,7 +1373,7 @@ mod tests {
         let cols = 10;
         let rows = 10;
         let mut arr = vec![0; 100];
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let mut formula_array = vec![
             Formula {
                 op_type: 0,

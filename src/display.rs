@@ -366,7 +366,7 @@ mod tests {
         let mut curry = 5;
         let cols = 10;
         let rows = 10;
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let arr = vec![0; 100];
 
         scroller_display("w", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
@@ -380,7 +380,7 @@ mod tests {
         let mut curry = 0;
         let cols = 10;
         let rows = 20;
-        let mut graph = Graph::new(200);
+        let mut graph = Graph::new();
         let arr = vec![0; 200];
 
         scroller_display("s", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
@@ -394,7 +394,7 @@ mod tests {
         let mut curry = 0;
         let cols = 10;
         let rows = 10;
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let arr = vec![0; 100];
 
         scroller_display("a", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
@@ -408,7 +408,7 @@ mod tests {
         let mut curry = 0;
         let cols = 20;
         let rows = 10;
-        let mut graph = Graph::new(200);
+        let mut graph = Graph::new();
         let arr = vec![0; 200];
 
         scroller_display("d", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
@@ -422,7 +422,7 @@ mod tests {
         let mut curry = 0;
         let cols = 10;
         let rows = 10;
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let arr = vec![0; 100];
 
         scroller_display(
@@ -444,7 +444,7 @@ mod tests {
         let mut curry = 0;
         let cols = 10;
         let rows = 10;
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let arr = vec![0; 100];
 
         scroller_display(
@@ -466,7 +466,7 @@ mod tests {
         let mut curry = 0;
         let cols = 10;
         let rows = 10;
-        let mut graph = Graph::new(100);
+        let mut graph = Graph::new();
         let arr = vec![0; 100];
 
         scroller_display(
@@ -481,4 +481,67 @@ mod tests {
         assert_eq!(curr_x, 0); // No change
         assert_eq!(curry, 0); // No change
     }
+
+    #[test]
+    fn test_scroller_display_scroll_to_bounds_check() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new();
+        let arr = vec![0; 100];
+
+        // Valid cell within bounds
+        scroller_display(
+            "scroll_to C3",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
+        assert_eq!(curr_x, 0); // Column C (zero-based index 2)
+        assert_eq!(curry, 0); // Row 3 (zero-based index 2)
+
+        // Invalid cell (row out of bounds)
+        scroller_display(
+            "scroll_to C11",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
+        assert_eq!(curr_x, 0); // No change
+        assert_eq!(curry, 0); // No change
+
+        // Invalid cell (column out of bounds)
+        scroller_display(
+            "scroll_to K3",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
+        assert_eq!(curr_x, 0); // No change
+        assert_eq!(curry, 0); // No change
+
+        // Invalid cell (completely out of bounds)
+        scroller_display(
+            "scroll_to Z99",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
+        assert_eq!(curr_x, 0); // No change
+        assert_eq!(curry, 0); // No change
+    }
 }
+
