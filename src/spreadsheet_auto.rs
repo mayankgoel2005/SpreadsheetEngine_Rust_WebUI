@@ -1,6 +1,7 @@
 use crate::display::printer;
 use crate::graph::{Formula, Graph};
 
+#[allow(dead_code)]
 pub struct Spreadsheet {
     pub rows: usize,
     pub cols: usize,
@@ -38,6 +39,7 @@ impl Spreadsheet {
 /// assert_eq!(sheet.cols, 10);
 /// assert_eq!(sheet.arr.len(), 5 * 10);
 /// ```
+#[allow(dead_code)]
 pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
     let total_cells = rows * cols;
     Spreadsheet {
@@ -61,6 +63,7 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
     }
 }
 
+#[allow(dead_code)]
 pub fn print_spreadsheet(spreadsheet: &Spreadsheet) {
     spreadsheet.print();
 }
