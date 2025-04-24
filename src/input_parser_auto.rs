@@ -169,7 +169,13 @@ fn arth_op(
         (false, left_s)
     };
     let left_is_cell = left_s.chars().next().is_some_and(is_alpha);
+    if left_is_cell && lneg {
+        return 1;
+    }
     let left_val = if left_is_cell {
+        if cell_parser(left_s, cols, rows) == -1 {
+            return 1;
+        }
         cell_parser(left_s, cols, rows)
     } else {
         left_s.parse::<i32>().unwrap_or(i32::MIN)
@@ -186,12 +192,22 @@ fn arth_op(
     } else {
         (false, right_s)
     };
+    if right_s.chars().next().is_some_and(is_alpha) && rneg {
+        return 1;
+    }
     let right_is_cell = right_s.chars().next().is_some_and(is_alpha);
+    if right_is_cell && rneg {
+        return 1;
+    }
     let mut right_val = if right_is_cell {
+        if cell_parser(right_s, cols, rows) == -1 {
+            return 1;
+        }
         cell_parser(right_s, cols, rows)
     } else {
         right_s.parse::<i32>().unwrap_or(i32::MIN)
     };
+    
     if right_val == i32::MIN { return 1 }
 
 
