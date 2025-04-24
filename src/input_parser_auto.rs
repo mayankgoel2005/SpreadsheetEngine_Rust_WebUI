@@ -1,4 +1,15 @@
-// src/input_parser.rs
+//! Module `input_parser`.
+//!
+//! Parses and executes cell assignment commands of the form `A1=EXPR`,
+//! where `EXPR` can be:
+//! - A literal integer (e.g. `42`)
+//! - A single cell reference (e.g. `B2`)
+//! - An arithmetic expression combining cells and/or literals with `+`, `-`, `*`, `/` (e.g. `A1+5`, `B2*C3`)
+//! - A function call: `MIN(range)`, `MAX(range)`, `AVG(range)`, `SUM(range)`, `STDEV(range)`, or `SLEEP(duration)`
+//!
+//! The entry point is [`parser`], which returns:
+//! - `0` on successful parse and evaluation
+//! - `1` on any error (parse error, invalid cell, cycle detection, etc.)
 
 use crate::spreadsheet::Spreadsheet;
 use crate::graph::{Graph, Formula, arith, add_formula, delete_edge, recalculate};

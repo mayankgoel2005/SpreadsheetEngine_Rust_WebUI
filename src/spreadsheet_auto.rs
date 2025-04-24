@@ -20,6 +20,24 @@ impl Spreadsheet {
     }
 }
 
+/// Construct a new `Spreadsheet` with the given dimensions.
+///
+/// All cells are initialized to zero and no formulas are set.
+///
+/// # Panics
+///
+/// Will panic if `rows * cols` overflows `usize` (unlikely for sane sizes).
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::initialize_spreadsheet;
+///
+/// let sheet = initialize_spreadsheet(5, 10);
+/// assert_eq!(sheet.rows, 5);
+/// assert_eq!(sheet.cols, 10);
+/// assert_eq!(sheet.arr.len(), 5 * 10);
+/// ```
 pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
     let total_cells = rows * cols;
     Spreadsheet {

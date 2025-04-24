@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 // use std::i32;
-
+/// graph_auto.rs is for terminal version
 /// A recorded formula:
 ///  op_type:
 ///    0 = constant
@@ -27,13 +27,22 @@ impl fmt::Display for Formula {
 }
 
 
-/// A very simple adjacency list: for each cell index, a Vec of its dependents.
+/// A very simple adjacency list: for each cell index, a hashmap of its dependents.
 pub struct Graph {
     pub adj: HashMap<usize, Vec<usize>>,
 }
 
 impl Graph {
-    /// Create a new graph with an initially empty adjacency map.
+    /// Create a brand‐new, empty dependency graph.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use lab1::graph::Graph;
+    ///
+    /// let g = Graph::new();
+    /// assert!(g.adj.is_empty());
+    /// ```
     pub fn new() -> Self {
         Graph {
             adj: HashMap::new(),
@@ -41,7 +50,27 @@ impl Graph {
     }
 }
 
-/// Record a new formula in formula_array[cell] and install its dependency edges.
+/// Install a formula into `formula_array[cell]` *and* hook up its dependency edges.
+///
+/// - `graph`:  your dependency graph
+/// - `cell`:  index of the cell being (re)defined
+/// - `p1,p2`: formula operands (cells or literals)
+/// - `op_type`: formula kind code (see [`Formula`])
+/// - `formula_array`: the per‐cell storage you’ll replay in `recalculate`
+/// - `cols`: number of columns (for decoding ranges)
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, Formula, add_formula};
+///
+/// // formulas[3] = cell 0 + literal 5
+/// let mut g = Graph::new();
+/// let mut formulas = vec![Formula { op_type:0,p1:0,p2:0 }; 10];
+/// add_formula(&mut g, 3, 0, 5, 1, &mut formulas, /*cols=*/5);
+/// assert_eq!(formulas[3].op_type, 1);
+/// assert_eq!(g.adj.get(&0).unwrap(), &vec![3]);
+/// ```
 pub fn add_formula(
     graph:         &mut Graph,
     cell:          usize,
@@ -95,7 +124,25 @@ pub fn add_formula(
     }
 }
 
-/// Remove the old edges for whatever formula was in formula_array[cell].
+/// Remove *all* dependency edges caused by whatever formula was in `formula_array[cell]`.
+///
+/// After this call, that cell’s previous dependents will no longer be notified when the
+/// source cells change.
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, Formula, add_formula, delete_edge};
+///
+/// let mut g = Graph::new();
+/// let mut formulas = vec![Formula { op_type:0,p1:0,p2:0 }; 10];
+/// // build a single dependency:
+/// add_formula(&mut g, 3, 0, 5, 1, &mut formulas, 3);
+/// assert!(g.adj.get(&0).unwrap().contains(&3));
+/// // now drop it:
+/// delete_edge(&mut g, 3, &formulas, 3);
+/// assert!(!g.adj.contains_key(&0));
+/// ```
 pub fn delete_edge(
     graph:         &mut Graph,
     cell:          usize,
@@ -164,7 +211,16 @@ pub fn delete_edge(
         _ => {}
     }
 }
-
+/// Perform a single arithmetic operation, *wrapping* on overflow (and signalling division-by-zero
+/// by returning `i32::MIN`).
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::arith;
+/// assert_eq!(arith(5, 3, '+'), 8);
+/// assert_eq!(arith(5, 0, '/'), i32::MIN);
+/// ```
 #[inline]
 pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
     match op {
@@ -175,9 +231,26 @@ pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
         _   => i32::MIN,
     }
 }
-
-/// Kahn’s algorithm over the reachable subgraph starting at start.
-/// Returns None if a cycle is found; otherwise the topo order.
+/// Return a topological ordering of all nodes reachable *from* `start`.  If any cycle is found
+/// among those reachable nodes, returns `None`.
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, add_formula, topological_sort};
+///
+/// // Build chain 0 → 1 → 2
+/// let mut g = Graph::new();
+/// let mut f = vec![super::Formula { op_type:0, p1:0, p2:0 }; 3];
+/// add_formula(&mut g, 1, 0, 0, 1, &mut f, 3); // 1 depends on 0
+/// add_formula(&mut g, 2, 1, 0, 1, &mut f, 3); // 2 depends on 1
+///
+/// assert_eq!(topological_sort(&g, 0), Some(vec![0,1,2]));
+///
+/// // Introduce a cycle 2 → 1:
+/// add_formula(&mut g, 1, 2, 0, 1, &mut f, 3);
+/// assert_eq!(topological_sort(&g, 0), None);
+/// ```
 pub fn topological_sort(
     graph: &Graph,
     start: usize,
@@ -233,9 +306,26 @@ pub fn topological_sort(
         Some(result)
     }
 }
-
-/// Recalculate all formulas downstream of start_cell into arr.
-/// If a cycle is detected, returns false and leaves arr untouched.
+/// Recompute (in topological‐sort order) **all** formulas downstream of `start_cell`, writing
+/// their values into `arr`.  Returns `false` (and leaves `arr` untouched) if a cycle is detected.
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, add_formula, recalculate};
+/// use lab1::spreadsheet::initialize_spreadsheet;
+///
+/// // very small 1×3 sheet: cells 0,1,2
+/// let mut sheet = initialize_spreadsheet(1,3);
+/// sheet.arr[0] = 4;
+/// sheet.arr[1] = 2;
+///
+/// // cell 2 = cell 0 + cell 1
+/// add_formula(&mut sheet.graph, 2, 0, 1, 5, &mut sheet.formula_array, 3);
+///
+/// assert!(recalculate(&mut sheet.graph, 3, &mut sheet.arr, 2, &sheet.formula_array));
+/// assert_eq!(sheet.arr[2], 6);
+/// ```
 pub fn recalculate(
     graph:          &mut Graph,
     cols:           i32,
@@ -349,4 +439,42 @@ pub fn recalculate(
         }
     }
     true
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arith_addition() {
+        assert_eq!(arith(10, 5, '+'), 15);
+        assert_eq!(arith(-10, 5, '+'), -5);
+        assert_eq!(arith(i32::MAX, 1, '+'), i32::MAX.wrapping_add(1)); // Wrapping addition
+    }
+
+    #[test]
+    fn test_arith_subtraction() {
+        assert_eq!(arith(10, 5, '-'), 5);
+        assert_eq!(arith(5, 10, '-'), -5);
+        assert_eq!(arith(i32::MIN, 1, '-'), i32::MIN.wrapping_sub(1)); // Wrapping subtraction
+    }
+
+    #[test]
+    fn test_arith_multiplication() {
+        assert_eq!(arith(3, 4, '*'), 12);
+        assert_eq!(arith(-3, 4, '*'), -12);
+        assert_eq!(arith(i32::MAX, 2, '*'), i32::MAX.wrapping_mul(2)); // Wrapping multiplication
+        assert_eq!(arith(i32::MIN, -1, '*'), i32::MIN.wrapping_mul(-1)); // Wrapping multiplication
+    }
+
+    #[test]
+    fn test_arith_division() {
+        assert_eq!(arith(10, 2, '/'), 5);
+        assert_eq!(arith(10, 0, '/'), i32::MIN); // Division by zero
+        assert_eq!(arith(-10, 2, '/'), -5);
+    }
+
+    #[test]
+    fn test_arith_invalid_operation() {
+        assert_eq!(arith(10, 5, '%'), i32::MIN); // Unsupported operator
+    }
 }

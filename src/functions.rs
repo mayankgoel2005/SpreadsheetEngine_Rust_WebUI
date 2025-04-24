@@ -4,12 +4,10 @@ use std::{thread, time::Duration};
 use crate::graph::{Graph, Formula, add_formula};
 use crate::input_parser::cell_parser;
 
-/// insert `dest` into the dependents list of `src`, deduplicating
+/// insert dest into the dependents list of src, deduplicating
 #[inline]
-pub fn depend(graph: &mut Graph, src: usize, dest: usize) {
-    if !graph.adj[src].contains(&dest) {
-        graph.adj[src].push(dest);
-    }
+fn depend(g: &mut Graph, src: usize, dst: usize) {
+    g.adj.entry(src).or_default().push(dst);
 }
 
 #[inline]
@@ -18,10 +16,34 @@ fn validate_range(start: i32, end: i32, cols: i32) -> bool {
     let (er, ec) = (end   / cols, end   % cols);
     !(sr > er || (sr == er && sc > ec))
 }
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  MIN                                                                     */
-/*───────────────────────────────────────────────────────────────────────────*/
+/// Compute the minimum value over a range
+/// record the formula in the dependency graph, and store the result in `dst`.
+///
+/// Returns `true` on success, `false` if the text is malformed or the range is invalid.
+///
+/// # Parameters
+///
+/// - `txt`: the entire formula text, e.g. `"C3=MIN(A1:B2)"`
+/// - `cols`, `rows`: sheet dimensions
+/// - `eq`: index of the `=` in `txt`
+/// - `arr`: the current cell values (row-major)
+/// - `g`: the dependency graph to update
+/// - `farr`: the array of recorded formulas (one per cell)
+///
+/// # Examples
+///
+/// ```rust
+/// # use lab1::functions::min_func;
+/// # use lab1::graph::{Graph, Formula};
+/// # use lab1::input_parser::cell_parser;
+/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut graph = Graph::new();
+/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
+/// // place the minimum of A1:B2 into cell C1 (index 2):
+/// let ok = min_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// assert!(ok);
+/// assert_eq!(arr[2], 2);
+/// ```
 pub fn min_func(
     txt: &str,
     cols: i32,
@@ -58,7 +80,11 @@ pub fn min_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
 
             if arr[idx] < min_val { min_val = arr[idx]; }
         }
@@ -66,10 +92,34 @@ pub fn min_func(
     arr[dst as usize] = min_val;
     true
 }
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  MAX ­– identical structure, only the reducer changes                    */
-/*───────────────────────────────────────────────────────────────────────────*/
+/// Compute the maximum value over a range
+/// record the formula in the dependency graph, and store the result in `dst`.
+///
+/// Returns `true` on success, `false` if the text is malformed or the range is invalid.
+///
+/// # Parameters
+///
+/// - `txt`: the entire formula text, e.g. `"C3=MIN(A1:B2)"`
+/// - `cols`, `rows`: sheet dimensions
+/// - `eq`: index of the `=` in `txt`
+/// - `arr`: the current cell values (row-major)
+/// - `g`: the dependency graph to update
+/// - `farr`: the array of recorded formulas (one per cell)
+///
+/// # Examples
+///
+/// ```rust
+/// # use lab1::functions::max_func;
+/// # use lab1::graph::{Graph, Formula};
+/// # use lab1::input_parser::cell_parser;
+/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut graph = Graph::new();
+/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
+/// // place the minimum of A1:B2 into cell C1 (index 2):
+/// let ok = max_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// assert!(ok);
+/// assert_eq!(arr[2], 2);
+/// ```
 pub fn max_func(
     txt: &str,
     cols: i32,
@@ -104,17 +154,45 @@ pub fn max_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             if arr[idx] > max_val { max_val = arr[idx]; }
         }
     }
     arr[dst as usize] = max_val;
     true
 }
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  AVG                                                                     */
-/*───────────────────────────────────────────────────────────────────────────*/
+/// Compute the average value over a range
+/// record the formula in the dependency graph, and store the result in `dst`.
+///
+/// Returns `true` on success, `false` if the text is malformed or the range is invalid.
+///
+/// # Parameters
+///
+/// - `txt`: the entire formula text, e.g. `"C3=MIN(A1:B2)"`
+/// - `cols`, `rows`: sheet dimensions
+/// - `eq`: index of the `=` in `txt`
+/// - `arr`: the current cell values (row-major)
+/// - `g`: the dependency graph to update
+/// - `farr`: the array of recorded formulas (one per cell)
+///
+/// # Examples
+///
+/// ```rust
+/// # use lab1::functions::avg_func;
+/// # use lab1::graph::{Graph, Formula};
+/// # use lab1::input_parser::cell_parser;
+/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut graph = Graph::new();
+/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
+/// // place the minimum of A1:B2 into cell C1 (index 2):
+/// let ok = avg_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// assert!(ok);
+/// assert_eq!(arr[2], 2);
+/// ```
 pub fn avg_func(
     txt: &str,
     cols: i32,
@@ -150,7 +228,11 @@ pub fn avg_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             sum += arr[idx];
             cnt += 1;
         }
@@ -158,10 +240,34 @@ pub fn avg_func(
     arr[dst as usize] = if cnt == 0 { 0 } else { sum / cnt };
     true
 }
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  SUM ­– straightforward                                                  */
-/*───────────────────────────────────────────────────────────────────────────*/
+/// Compute the sum over a range
+/// record the formula in the dependency graph, and store the result in `dst`.
+///
+/// Returns `true` on success, `false` if the text is malformed or the range is invalid.
+///
+/// # Parameters
+///
+/// - `txt`: the entire formula text, e.g. `"C3=MIN(A1:B2)"`
+/// - `cols`, `rows`: sheet dimensions
+/// - `eq`: index of the `=` in `txt`
+/// - `arr`: the current cell values (row-major)
+/// - `g`: the dependency graph to update
+/// - `farr`: the array of recorded formulas (one per cell)
+///
+/// # Examples
+///
+/// ```rust
+/// # use lab1::functions::sum_func;
+/// # use lab1::graph::{Graph, Formula};
+/// # use lab1::input_parser::cell_parser;
+/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut graph = Graph::new();
+/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
+/// // place the minimum of A1:B2 into cell C1 (index 2):
+/// let ok = sum_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// assert!(ok);
+/// assert_eq!(arr[2], 2);
+/// ```
 pub fn sum_func(
     txt: &str,
     cols: i32,
@@ -196,17 +302,45 @@ pub fn sum_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize {
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             sum += arr[idx];
         }
     }
     arr[dst as usize] = sum;
     true
 }
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  STDEV                                                                   */
-/*───────────────────────────────────────────────────────────────────────────*/
+/// Compute the stdev over a range
+/// record the formula in the dependency graph, and store the result in `dst`.
+///
+/// Returns `true` on success, `false` if the text is malformed or the range is invalid.
+///
+/// # Parameters
+///
+/// - `txt`: the entire formula text, e.g. `"C3=MIN(A1:B2)"`
+/// - `cols`, `rows`: sheet dimensions
+/// - `eq`: index of the `=` in `txt`
+/// - `arr`: the current cell values (row-major)
+/// - `g`: the dependency graph to update
+/// - `farr`: the array of recorded formulas (one per cell)
+///
+/// # Examples
+///
+/// ```rust
+/// # use lab1::graph::{Graph, Formula};
+/// # use lab1::input_parser::cell_parser;
+/// use lab1::standard_dev_func;
+/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut graph = Graph::new();
+/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
+/// // place the minimum of A1:B2 into cell C1 (index 2):
+/// let ok = standard_dev_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// assert!(ok);
+/// assert_eq!(arr[2], 2);
+/// ```
 pub fn standard_dev_func(
     txt: &str,
     cols: i32,
@@ -239,31 +373,49 @@ pub fn standard_dev_func(
 
     let mut sum = 0;
     let mut cnt = 0;
+    let mut sum_sq=0;
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             sum += arr[idx];
             cnt += 1;
+            sum_sq += arr[idx]*arr[idx];
         }
     }
-    let avg = if cnt == 0 { 0.0 } else { sum as f64 / cnt as f64 };
-
-    let mut acc = 0.0;
-    for r in sr..=er {
-        for c0 in sc..=ec {
-            let idx = (r * cols + c0) as usize;
-            let d = arr[idx] as f64 - avg;
-            acc += d * d;
-        }
+    if cnt<=1 {
+        arr[dst as usize] = 0;
+        true
     }
-    arr[dst as usize] = (acc / cnt as f64).sqrt() as i32;
-    true
+    else {
+        let avg = sum/cnt;
+        let var=((sum_sq - 2 * sum * avg + avg * avg * cnt) as f64) / (cnt as f64);
+        arr[dst as usize] = var.sqrt().round() as i32;
+        true
+    }
 }
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  SLEEP                                                                   */
-/*───────────────────────────────────────────────────────────────────────────*/
+/// Pause the thread for the specified number of seconds (literal or cell reference),
+/// record that as a “SLEEP” formula, and store the elapsed seconds in `dst`.
+///
+/// Returns `true` on success or `false` on parse/range error.
+///
+/// # Examples
+///
+/// ```rust
+/// # use lab1::functions::sleep_func;
+/// # use lab1::graph::{Graph, Formula};
+/// # use lab1::input_parser::cell_parser;
+/// let mut arr = vec![5];      // we’ll sleep for 5 seconds
+/// let mut graph = Graph::new();
+/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; 1];
+/// let ok = sleep_func("A1=SLEEP(1)", 1, 1, 2, &mut arr, &mut graph, &mut farr);
+/// assert!(ok);
+/// assert_eq!(arr[0], 1);
+/// ```
 pub fn sleep_func(
     txt: &str,
     cols: i32,

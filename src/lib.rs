@@ -1,5 +1,20 @@
+//! # lab1
+//!
+//! A spreadsheet engine that can be driven from the terminal or compiled to WebAssembly.
+//!
+//! ## Quickstart
+//!
+//! ```rust
+//! use lab1::initialize_spreadsheet;
+//!
+//! let mut sheet = initialize_spreadsheet(5, 10);
+//! assert_eq!(sheet.rows, 5);
+//! assert_eq!(sheet.cols, 10);
+//! assert_eq!(sheet.arr.len(), 5 * 10);
+//! assert!(sheet.arr.iter().all(|&cell| cell == 0));
+//! ```
 use std::cell::RefCell;
-
+use crate::input_parser::cell_parser;
 // Only include wasm-bindgen if the "wasm" feature is enabled
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -9,14 +24,17 @@ use wasm_bindgen::prelude::*;
 // ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
 #[path = "spreadsheet_auto.rs"]
+
+// ────────────────────────────────────────────────────────────────
+// Core modules (auto / non‐auto via feature flag)
+// ────────────────────────────────────────────────────────────────
+#[cfg(feature = "autograder")]
+#[path = "spreadsheet_auto.rs"]
 pub mod spreadsheet;
 #[cfg(not(feature = "autograder"))]
 #[path = "spreadsheet.rs"]
 pub mod spreadsheet;
 
-// ────────────────────────────────────────────────────────────────
-// Display / Printer
-// ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
 #[path = "display_auto.rs"]
 pub mod display;
@@ -24,9 +42,6 @@ pub mod display;
 #[path = "display.rs"]
 pub mod display;
 
-// ────────────────────────────────────────────────────────────────
-// Input Parser
-// ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
 #[path = "input_parser_auto.rs"]
 pub mod input_parser;
@@ -34,9 +49,6 @@ pub mod input_parser;
 #[path = "input_parser.rs"]
 pub mod input_parser;
 
-// ────────────────────────────────────────────────────────────────
-// Graph (dependency engine)
-// ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
 #[path = "graph_auto.rs"]
 pub mod graph;
@@ -44,9 +56,6 @@ pub mod graph;
 #[path = "graph.rs"]
 pub mod graph;
 
-// ────────────────────────────────────────────────────────────────
-// Functions (SUM/AVG/MIN/MAX/STDEV/SLEEP)
-// ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
 #[path = "functions_auto.rs"]
 pub mod functions;
@@ -54,20 +63,23 @@ pub mod functions;
 #[path = "functions.rs"]
 pub mod functions;
 
-// ────────────────────────────────────────────────────────────────
-// Scrolling / Navigation
-// ────────────────────────────────────────────────────────────────
 #[cfg(feature = "autograder")]
 #[path = "scrolling_auto.rs"]
 pub mod scrolling;
 #[cfg(not(feature = "autograder"))]
 #[path = "scrolling.rs"]
 pub mod scrolling;
+mod spreadsheet_auto;
 
-#[cfg(feature = "wasm")]
-use crate::input_parser::cell_parser;
-
-use spreadsheet::{initialize_spreadsheet, Spreadsheet};
+// ────────────────────────────────────────────────────────────────
+// Re-exports at the crate root
+// ────────────────────────────────────────────────────────────────
+pub use spreadsheet::{initialize_spreadsheet, print_spreadsheet, Spreadsheet};
+pub use display::{printer, render_spreadsheet};
+pub use input_parser::parser as parse_input;
+pub use graph::{add_formula, delete_edge, recalculate, topological_sort, arith};
+pub use functions::{min_func, max_func, sum_func, avg_func, standard_dev_func, sleep_func};
+pub use scrolling::{scroller, scroll_to, scroll_up, scroll_down, scroll_left, scroll_right};
 
 // Global spreadsheet state stored as thread-local storage.
 thread_local! {

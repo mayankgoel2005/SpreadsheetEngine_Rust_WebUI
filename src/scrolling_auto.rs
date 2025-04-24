@@ -2,7 +2,24 @@ use crate::spreadsheet::Spreadsheet;
 use crate::display::scroller_display;
 use crate::input_parser::cell_parser;
 
-/// Jump directly to a given (row, col)
+/// Parses a scroll command and updates the spreadsheet’s view accordingly.
+///
+/// There are two kinds of commands handled here:
+///
+/// 1. **Absolute jump**:
+///    If `cmd` starts with `"scroll_to "`, the remainder is parsed as a cell
+///    reference (e.g. `"scroll_to B2"`).  On success, the viewport is moved so
+///    that that cell is at the top‐left of the visible region.
+///
+/// 2. **Relative scroll**:
+///    Any other `cmd` is forwarded to [`scroller_display`], which handles
+///    in‐place scrolling (e.g. `"w"`, `"a"`, `"s"`, `"d"`, `"up"`, `"left"`, etc.)
+///
+/// # Arguments
+///
+/// * `cmd` – the raw scroll command string, e.g. `"scroll_to A1"` or `"w"`.
+/// * `spreadsheet` – the `Spreadsheet` whose `.curr_x` and `.curry` fields
+///                   will be updated to change what’s on‐screen.
 pub fn scroll_to(spreadsheet: &mut Spreadsheet, row: usize, col: usize) {
     spreadsheet.curr_x = col;
     spreadsheet.curry  = row;

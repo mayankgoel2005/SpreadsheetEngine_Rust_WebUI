@@ -1,4 +1,20 @@
-// src/bin/main.rs
+//! Command-line interface for the Lab1 spreadsheet application.
+//!
+//! It initializes a spreadsheet of a user-specified size, renders it to stdout, and then
+//! enters an interactive read-eval-print loop (REPL).
+//!
+//! # Usage
+//! ```text
+//! make
+//! ```
+//! where `rows` ∈ [1, 999] and `cols` ∈ [1, 18278].
+//! Once running, you can enter:
+//! - `A1=5`‐style formulas
+//! - `w`, `a`, `s`, `d`, or `scroll_to X,Y` to pan the viewport
+//! - `disable_output` / `enable_output` to toggle re-rendering
+//! - `q` (or `Q`) to quit
+//!
+//! Each command is timed and you’ll see an `[s.s] (ok|err) > ` prompt.
 #[cfg(feature = "autograder")]
 
 fn main() {

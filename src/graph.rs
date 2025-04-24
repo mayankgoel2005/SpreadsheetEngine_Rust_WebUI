@@ -1,9 +1,11 @@
 // src/graph.rs
 
 use std::collections::VecDeque;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 // use std::i32;
-
+/// graph_auto.rs is for terminal version
 /// A recorded formula:
 ///  op_type:
 ///    0 = constant
@@ -11,7 +13,7 @@ use std::fmt;
 ///    5–8 = "cell ±/* cell"
 ///    9–13 = MIN, MAX, AVG, SUM, STDEV over a range [p1..p2]
 ///    14 = SLEEP
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct Formula {
     pub op_type: i32,
     pub p1:     i32,
@@ -25,62 +27,96 @@ impl fmt::Display for Formula {
 }
 
 
-/// A very simple adjacency list: for each cell index, a Vec of its dependents.
+/// A very simple adjacency list: for each cell index, a hashmap of its dependents.
 pub struct Graph {
-    pub adj: Vec<Vec<usize>>,
+    pub adj: HashMap<usize, Vec<usize>>,
 }
 
 impl Graph {
-    /// Create a new graph for `size` cells (0..size-1).
-    pub fn new(size: usize) -> Self {
-        Graph { adj: vec![Vec::new(); size] }
+    /// Create a brand‐new, empty dependency graph.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use lab1::graph::Graph;
+    ///
+    /// let g = Graph::new();
+    /// assert!(g.adj.is_empty());
+    /// ```
+    pub fn new() -> Self {
+        Graph {
+            adj: HashMap::new(),
+        }
     }
 }
 
-/// Record a new formula in `formula_array[cell]` and install its dependency edges.
+/// Install a formula into `formula_array[cell]` *and* hook up its dependency edges.
+///
+/// - `graph`:  your dependency graph
+/// - `cell`:  index of the cell being (re)defined
+/// - `p1,p2`: formula operands (cells or literals)
+/// - `op_type`: formula kind code (see [`Formula`])
+/// - `formula_array`: the per‐cell storage you’ll replay in `recalculate`
+/// - `cols`: number of columns (for decoding ranges)
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, Formula, add_formula};
+///
+/// // formulas[3] = cell 0 + literal 5
+/// let mut g = Graph::new();
+/// let mut formulas = vec![Formula { op_type:0,p1:0,p2:0 }; 10];
+/// add_formula(&mut g, 3, 0, 5, 1, &mut formulas, /*cols=*/5);
+/// assert_eq!(formulas[3].op_type, 1);
+/// assert_eq!(g.adj.get(&0).unwrap(), &vec![3]);
+/// ```
 pub fn add_formula(
-    graph:          &mut Graph,
-    cell:           usize,
-    p1:             i32,
-    p2:             i32,
-    op_type:        i32,
-    formula_array:  &mut [Formula],
-    cols: usize,
+    graph:         &mut Graph,
+    cell:          usize,
+    p1:            i32,
+    p2:            i32,
+    op_type:       i32,
+    formula_array: &mut [Formula],
+    cols:          usize,
 ) {
     formula_array[cell] = Formula { op_type, p1, p2 };
+
     match op_type {
         1..=4 => {
             let src = p1 as usize;
-            graph.adj[src].push(cell);
+            graph.adj.entry(src).or_default().push(cell);
         }
         5..=8 => {
             let s1 = p1 as usize;
             let s2 = p2 as usize;
-            graph.adj[s1].push(cell);
-            graph.adj[s2].push(cell);
+            graph.adj.entry(s1).or_default().push(cell);
+            graph.adj.entry(s2).or_default().push(cell);
         }
         9..=13 => {
             let start = p1 as usize;
             let end   = p2 as usize;
             let (sr, sc) = (start / cols, start % cols);
-            let (er, ec) = (end / cols, end % cols);
+            let (er, ec) = (end   / cols, end   % cols);
 
-            // reject true rectangles
+            // Reject rectangles: only allow full row or full column ranges
             if sr != er && sc != ec { return; }
 
             if sc == ec {
-                // vertical
+                // vertical range
                 for r in sr..=er {
                     let src = r * cols + sc;
-                    if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if src != cell {
+                        graph.adj.entry(src).or_default().push(cell);
+                    }
                 }
             } else {
-                // horizontal
+                // horizontal range
                 for c in sc..=ec {
                     let src = sr * cols + c;
-                    if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if src != cell {
+                        graph.adj.entry(src).or_default().push(cell);
+                    }
                 }
             }
         }
@@ -88,7 +124,25 @@ pub fn add_formula(
     }
 }
 
-/// Remove the old edges for whatever formula was in `formula_array[cell]`.
+/// Remove *all* dependency edges caused by whatever formula was in `formula_array[cell]`.
+///
+/// After this call, that cell’s previous dependents will no longer be notified when the
+/// source cells change.
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, Formula, add_formula, delete_edge};
+///
+/// let mut g = Graph::new();
+/// let mut formulas = vec![Formula { op_type:0,p1:0,p2:0 }; 10];
+/// // build a single dependency:
+/// add_formula(&mut g, 3, 0, 5, 1, &mut formulas, 3);
+/// assert!(g.adj.get(&0).unwrap().contains(&3));
+/// // now drop it:
+/// delete_edge(&mut g, 3, &formulas, 3);
+/// assert!(!g.adj.contains_key(&0));
+/// ```
 pub fn delete_edge(
     graph:         &mut Graph,
     cell:          usize,
@@ -99,40 +153,74 @@ pub fn delete_edge(
     match f.op_type {
         1..=4 => {
             let src = f.p1 as usize;
-            graph.adj[src].retain(|&d| d != cell);
+            if let Some(dependents) = graph.adj.get_mut(&src) {
+                dependents.retain(|&d| d != cell);
+                if dependents.is_empty() {
+                    graph.adj.remove(&src);
+                }
+            }
         }
         5..=8 => {
             let s1 = f.p1 as usize;
             let s2 = f.p2 as usize;
-            graph.adj[s1].retain(|&d| d != cell);
-            graph.adj[s2].retain(|&d| d != cell);
+            for src in [s1, s2] {
+                if let Some(dependents) = graph.adj.get_mut(&src) {
+                    dependents.retain(|&d| d != cell);
+                    if dependents.is_empty() {
+                        graph.adj.remove(&src);
+                    }
+                }
+            }
         }
         9..=13 => {
             let start = f.p1 as usize;
             let end   = f.p2 as usize;
             let (sr, sc) = (start / cols, start % cols);
-            let (er, ec) = (end / cols, end % cols);
+            let (er, ec) = (end   / cols, end   % cols);
+
+            if sr != er && sc != ec {
+                return; // skip true rectangles
+            }
 
             if sc == ec {
-                // vertical
+                // vertical range
                 for r in sr..=er {
                     let src = r * cols + sc;
                     if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if let Some(dependents) = graph.adj.get_mut(&src) {
+                        dependents.retain(|&d| d != cell);
+                        if dependents.is_empty() {
+                            graph.adj.remove(&src);
+                        }
+                    }
                 }
             } else {
-                // horizontal
+                // horizontal range
                 for c in sc..=ec {
                     let src = sr * cols + c;
                     if src == cell { continue; }
-                    graph.adj[src].push(cell);
+                    if let Some(dependents) = graph.adj.get_mut(&src) {
+                        dependents.retain(|&d| d != cell);
+                        if dependents.is_empty() {
+                            graph.adj.remove(&src);
+                        }
+                    }
                 }
             }
         }
         _ => {}
     }
 }
-
+/// Perform a single arithmetic operation, *wrapping* on overflow (and signalling division-by-zero
+/// by returning `i32::MIN`).
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::arith;
+/// assert_eq!(arith(5, 3, '+'), 8);
+/// assert_eq!(arith(5, 0, '/'), i32::MIN);
+/// ```
 #[inline]
 pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
     match op {
@@ -143,55 +231,101 @@ pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
         _   => i32::MIN,
     }
 }
-
-/// Kahn’s algorithm over the **reachable** subgraph starting at `start`.
-/// Returns `None` if a cycle is found; otherwise the topo order.
+/// Return a topological ordering of all nodes reachable *from* `start`.  If any cycle is found
+/// among those reachable nodes, returns `None`.
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, add_formula, topological_sort};
+///
+/// // Build chain 0 → 1 → 2
+/// let mut g = Graph::new();
+/// let mut f = vec![super::Formula { op_type:0, p1:0, p2:0 }; 3];
+/// add_formula(&mut g, 1, 0, 0, 1, &mut f, 3); // 1 depends on 0
+/// add_formula(&mut g, 2, 1, 0, 1, &mut f, 3); // 2 depends on 1
+///
+/// assert_eq!(topological_sort(&g, 0), Some(vec![0,1,2]));
+///
+/// // Introduce a cycle 2 → 1:
+/// add_formula(&mut g, 1, 2, 0, 1, &mut f, 3);
+/// assert_eq!(topological_sort(&g, 0), None);
+/// ```
 pub fn topological_sort(
-    graph:      &Graph,
-    start:      usize,
-    total_size: usize,
+    graph: &Graph,
+    start: usize,
 ) -> Option<Vec<usize>> {
-    // 1) BFS to mark reachable and count in‑degrees
-    let mut in_degree = vec![0; total_size];
-    let mut reachable = vec![false; total_size];
-    let mut queue     = VecDeque::new();
-    reachable[start] = true;
-    let mut reach=1;
+    // Only store reachable in-degrees
+    let mut in_degree: HashMap<usize, usize> = HashMap::new();
+    let mut reachable: HashSet<usize> = HashSet::new();
+    let mut queue = VecDeque::new();
+
+    // Step 1: Discover reachable nodes and count in-degrees
+    reachable.insert(start);
     queue.push_back(start);
+
     while let Some(u) = queue.pop_front() {
-        for &v in &graph.adj[u] {
-            in_degree[v] += 1;
-            if !reachable[v] {
-                reachable[v] = true;
-                reach+=1;
-                queue.push_back(v);
+        if let Some(neighbors) = graph.adj.get(&u) {
+            for &v in neighbors {
+                *in_degree.entry(v).or_insert(0) += 1;
+                if reachable.insert(v) {
+                    queue.push_back(v);
+                }
             }
         }
     }
 
-    // 2) Kahn’s zero‑queue
-    let mut zero   = VecDeque::new();
+    // Step 2: Kahn’s algorithm using only reachable nodes
+    let mut zero_in = VecDeque::new();
     let mut result = Vec::new();
-    zero.push_back(start);
-    while let Some(u) = zero.pop_front() {
+
+    // Add nodes with zero in-degree
+    for &node in &reachable {
+        if !in_degree.contains_key(&node) {
+            zero_in.push_back(node);
+        }
+    }
+
+    while let Some(u) = zero_in.pop_front() {
         result.push(u);
-        for &v in &graph.adj[u] {
-            in_degree[v] -= 1;
-            if in_degree[v] == 0 {
-                zero.push_back(v);
+        if let Some(neighbors) = graph.adj.get(&u) {
+            for &v in neighbors {
+                if let Some(indeg) = in_degree.get_mut(&v) {
+                    *indeg -= 1;
+                    if *indeg == 0 {
+                        zero_in.push_back(v);
+                    }
+                }
             }
         }
     }
-    if result.len() != reach{
-        // cycle among the reachable nodes
+
+    if result.len() != reachable.len() {
         None
     } else {
         Some(result)
     }
 }
-
-/// Recalculate all formulas downstream of `start_cell` into `arr`.
-/// If a cycle is detected, returns `false` and leaves `arr` untouched.
+/// Recompute (in topological‐sort order) **all** formulas downstream of `start_cell`, writing
+/// their values into `arr`.  Returns `false` (and leaves `arr` untouched) if a cycle is detected.
+///
+/// # Examples
+///
+/// ```rust
+/// use lab1::graph::{Graph, add_formula, recalculate};
+/// use lab1::spreadsheet::initialize_spreadsheet;
+///
+/// // very small 1×3 sheet: cells 0,1,2
+/// let mut sheet = initialize_spreadsheet(1,3);
+/// sheet.arr[0] = 4;
+/// sheet.arr[1] = 2;
+///
+/// // cell 2 = cell 0 + cell 1
+/// add_formula(&mut sheet.graph, 2, 0, 1, 5, &mut sheet.formula_array, 3);
+///
+/// assert!(recalculate(&mut sheet.graph, 3, &mut sheet.arr, 2, &sheet.formula_array));
+/// assert_eq!(sheet.arr[2], 6);
+/// ```
 pub fn recalculate(
     graph:          &mut Graph,
     cols:           i32,
@@ -199,8 +333,8 @@ pub fn recalculate(
     start_cell:     usize,
     formula_array:  &[Formula],
 ) -> bool {
-    let total_size = arr.len();
-    let sorted = match topological_sort(graph, start_cell, total_size) {
+    let _total_size = arr.len();
+    let sorted = match topological_sort(graph, start_cell) {
         Some(v) => v,
         None    => return false,
     };
@@ -259,9 +393,9 @@ pub fn recalculate(
                 let mut sum = 0;
                 let mut mn  = i32::MAX;
                 let mut mx  = i32::MIN;
-                let mut sd_acc = 0.0;
+                let sd_acc = 0.0;
                 let mut err = false;
-
+                let mut sum_sq=0;
                 for r in sr..=er {
                     for col in sc..=ec {
                         let idx = r * cols as usize + col;
@@ -269,6 +403,7 @@ pub fn recalculate(
                         if v == i32::MIN { err = true }
                         cnt += 1;
                         sum += v;
+                        sum_sq+=v*v;
                         mn = mn.min(v);
                         mx = mx.max(v);
                     }
@@ -283,15 +418,9 @@ pub fn recalculate(
                         11 => sum / cnt,
                         12 => sum,
                         13 => {
-                            let avg = sum as f64 / cnt as f64;
-                            for r in sr..=er {
-                                for col in sc..=ec {
-                                    let idx = r * cols as usize + col;
-                                    let d   = arr[idx] as f64 - avg;
-                                    sd_acc += d * d;
-                                }
-                            }
-                            (sd_acc / cnt as f64).sqrt() as i32
+                            let avg = sum/cnt;
+                            let variance = ((sum_sq - 2 * sum * avg + avg * avg * cnt) as f64) / (cnt as f64);
+                            variance.sqrt().round() as i32
                         }
                         _ => unreachable!(),
                     };
