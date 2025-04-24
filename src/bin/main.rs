@@ -16,7 +16,6 @@
 //!
 //! Each command is timed and you’ll see an `[s.s] (ok|err) > ` prompt.
 #[cfg(feature = "autograder")]
-
 #[allow(unused_assignments)]
 fn main() {
     use std::env;
