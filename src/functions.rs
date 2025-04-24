@@ -510,7 +510,6 @@ pub fn sleep_func(
     true
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -522,9 +521,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = min_func("Z1=MIN(A1:B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = min_func(
+            "Z1=MIN(A1:B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Invalid destination cell
     }
 
@@ -534,9 +548,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = min_func("A1=MIN(A1B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = min_func(
+            "A1=MIN(A1B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Missing colon in range
     }
 
@@ -546,9 +575,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = min_func("A1=MIN(A1:Z10)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = min_func(
+            "A1=MIN(A1:Z10)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Out-of-bounds range
     }
 
@@ -558,9 +602,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = min_func("A1=MIN(A1:A1)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = min_func(
+            "A1=MIN(A1:A1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Self-dependency
     }
 
@@ -570,9 +629,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = max_func("Z1=MAX(A1:B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = max_func(
+            "Z1=MAX(A1:B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Invalid destination cell
     }
 
@@ -582,9 +656,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = max_func("A1=MAX(A1B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = max_func(
+            "A1=MAX(A1B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Missing colon in range
     }
 
@@ -594,9 +683,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = max_func("A1=MAX(A1:Z10)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = max_func(
+            "A1=MAX(A1:Z10)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Out-of-bounds range
     }
 
@@ -606,9 +710,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = avg_func("Z1=AVG(A1:B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = avg_func(
+            "Z1=AVG(A1:B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Invalid destination cell
     }
 
@@ -618,9 +737,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = avg_func("A1=AVG(A1B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = avg_func(
+            "A1=AVG(A1B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Missing colon in range
     }
 
@@ -630,9 +764,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = sum_func("Z1=SUM(A1:B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = sum_func(
+            "Z1=SUM(A1:B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Invalid destination cell
     }
 
@@ -642,9 +791,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = sum_func("A1=SUM(A1B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = sum_func(
+            "A1=SUM(A1B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Missing colon in range
     }
 
@@ -654,9 +818,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = standard_dev_func("Z1=STDEV(A1:B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = standard_dev_func(
+            "Z1=STDEV(A1:B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Invalid destination cell
     }
 
@@ -666,9 +845,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = standard_dev_func("A1=STDEV(A1B2)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = standard_dev_func(
+            "A1=STDEV(A1B2)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Missing colon in range
     }
 
@@ -678,9 +872,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = sleep_func("Z1=SLEEP(1)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = sleep_func(
+            "Z1=SLEEP(1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Invalid destination cell
     }
 
@@ -690,9 +899,24 @@ mod tests {
         let rows = 10;
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut formula_array = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
 
-        let result = sleep_func("A1=SLEEP(abc)", cols, rows, 2, &mut arr, &mut graph, &mut formula_array);
+        let result = sleep_func(
+            "A1=SLEEP(abc)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
         assert!(!result); // Invalid literal
     }
 }

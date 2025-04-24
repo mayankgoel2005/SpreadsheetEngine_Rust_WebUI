@@ -568,4 +568,3 @@ mod tests {
         assert_eq!(curry, 0); // Ensure curry is not updated
     }
 }
-

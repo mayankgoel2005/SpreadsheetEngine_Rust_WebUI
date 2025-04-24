@@ -593,8 +593,12 @@ mod tests {
     #[test]
     fn test_topological_sort_no_cycle() {
         let mut graph = Graph::new();
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(1); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(1);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
         let result = topological_sort(&graph, 0);
         assert_eq!(result, Some(vec![0]));
     }
@@ -641,7 +645,9 @@ mod tests {
                 p2: 0,
             },
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(1); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(1);
+        };
         let result = recalculate(&mut graph, 5, &mut arr, 0, &formula_array);
         assert!(result);
         assert_eq!(arr[0], 10);
@@ -669,9 +675,15 @@ mod tests {
                 p2: 5,
             },
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(1); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
-       if let Some(val) = graph.adj.get_mut(&2) { val.push(0); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(1);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
+        if let Some(val) = graph.adj.get_mut(&2) {
+            val.push(0);
+        };
         let result = recalculate(&mut graph, 3, &mut arr, 0, &formula_array);
         assert!(result);
     }
@@ -838,8 +850,12 @@ mod tests {
                 p2: 1,
             }, // 10 + 20
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(2); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(2);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
 
         let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
         assert!(result);
@@ -867,8 +883,12 @@ mod tests {
                 p2: 1,
             }, // 30 - 10
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(2); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(2);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
 
         let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
         assert!(result);
@@ -896,8 +916,12 @@ mod tests {
                 p2: 1,
             }, // 3 * 4
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(2); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(2);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
 
         let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
         assert!(result);
@@ -925,8 +949,12 @@ mod tests {
                 p2: 1,
             }, // 20 / 4
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(2); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(2);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
 
         let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
         assert!(result);
@@ -954,8 +982,12 @@ mod tests {
                 p2: 1,
             }, // 20 / 0
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(2); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(2);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
 
         let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
         assert!(result);
@@ -983,8 +1015,12 @@ mod tests {
                 p2: 1,
             }, // i32::MIN + 10
         ];
-       if let Some(val) = graph.adj.get_mut(&0) { val.push(2); };
-       if let Some(val) = graph.adj.get_mut(&1) { val.push(2); };
+        if let Some(val) = graph.adj.get_mut(&0) {
+            val.push(2);
+        };
+        if let Some(val) = graph.adj.get_mut(&1) {
+            val.push(2);
+        };
 
         let result = recalculate(&mut graph, 3, &mut arr, 2, &formula_array);
         assert!(result);

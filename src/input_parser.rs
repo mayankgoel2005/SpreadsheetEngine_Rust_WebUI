@@ -1511,9 +1511,21 @@ mod tests {
         let cols = 3;
         let mut arr = vec![0; 3];
         let mut formula_array = vec![
-            Formula { op_type: 0, p1: 10, p2: 0 },
-            Formula { op_type: 1, p1: 0, p2: 5 },
-            Formula { op_type: 1, p1: 1, p2: 5 },
+            Formula {
+                op_type: 0,
+                p1: 10,
+                p2: 0,
+            },
+            Formula {
+                op_type: 1,
+                p1: 0,
+                p2: 5,
+            },
+            Formula {
+                op_type: 1,
+                p1: 1,
+                p2: 5,
+            },
         ];
 
         // Add a cycle to the graph using `depend`
@@ -1545,7 +1557,15 @@ mod tests {
                     p1: OLD_P1,
                     p2: OLD_P2,
                 };
-                add_formula(&mut graph, 2, OLD_P1, OLD_P2, OLD_OP_TYPE, &mut formula_array, cols as usize);
+                add_formula(
+                    &mut graph,
+                    2,
+                    OLD_P1,
+                    OLD_P2,
+                    OLD_OP_TYPE,
+                    &mut formula_array,
+                    cols as usize,
+                );
             }
         }
 
