@@ -53,6 +53,12 @@ impl Graph {
     }
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Install a formula into `formula_array[cell]` *and* hook up its dependency edges.
 ///
 /// - `graph`:  your dependency graph

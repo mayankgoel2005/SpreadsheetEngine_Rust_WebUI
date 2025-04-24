@@ -13,7 +13,7 @@
 //! assert_eq!(sheet.arr.len(), 5 * 10);
 //! assert!(sheet.arr.iter().all(|&cell| cell == 0));
 //! ```
-use crate::input_parser::cell_parser;
+// use crate::input_parser::cell_parser;
 use std::cell::RefCell;
 // Only include wasm-bindgen if the "wasm" feature is enabled
 #[cfg(feature = "wasm")]

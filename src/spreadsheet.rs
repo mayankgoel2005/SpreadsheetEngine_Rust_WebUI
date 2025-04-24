@@ -23,7 +23,6 @@ use std::collections::VecDeque;
 /// assert_eq!(sheet.arr.len(), 12);
 /// assert!(sheet.formula_strings.iter().all(|s| s.is_empty()));
 /// ```
-
 pub struct Spreadsheet {
     pub rows: usize,
     pub cols: usize,

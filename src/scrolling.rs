@@ -19,7 +19,7 @@ use crate::spreadsheet::Spreadsheet;
 ///
 /// * `cmd` – the raw scroll command string, e.g. `"scroll_to A1"` or `"w"`.
 /// * `spreadsheet` – the `Spreadsheet` whose `.curr_x` and `.curry` fields
-///                   will be updated to change what’s on‐screen.
+///   will be updated to change what’s on‐screen.
 ///
 /// # Examples
 ///
