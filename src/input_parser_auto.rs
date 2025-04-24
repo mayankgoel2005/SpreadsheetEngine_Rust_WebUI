@@ -209,6 +209,9 @@ fn arth_op(
 
     // record dependencies & formula
     let base_op = return_optype(op_ch);
+    if base_op==i32::MIN {
+        return 1;
+    }
     let (p1, p2, op_type) = match (left_is_cell, right_is_cell) {
         (true,  true ) => {
             let p1 = left_val.abs() ; // left index stored
@@ -284,7 +287,6 @@ fn funct(
         delete_edge(g, dst, farr, cols as usize);
         unsafe {
             arr[dst] = OLD_VALUE;
-            delete_edge(g, dst, farr, cols as usize);
             farr[dst] = Formula { op_type: OLD_OP_TYPE, p1: OLD_P1, p2: OLD_P2 };
             add_formula(g, dst, OLD_P1, OLD_P2, OLD_OP_TYPE, farr, cols as usize);
         }

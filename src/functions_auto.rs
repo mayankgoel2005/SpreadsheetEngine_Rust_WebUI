@@ -53,7 +53,11 @@ pub fn min_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
 
             if arr[idx] < min_val { min_val = arr[idx]; }
         }
@@ -96,7 +100,11 @@ pub fn max_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             if arr[idx] > max_val { max_val = arr[idx]; }
         }
     }
@@ -139,7 +147,11 @@ pub fn avg_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             sum += arr[idx];
             cnt += 1;
         }
@@ -182,7 +194,11 @@ pub fn sum_func(
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize {
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             sum += arr[idx];
         }
     }
@@ -222,26 +238,30 @@ pub fn standard_dev_func(
 
     let mut sum = 0;
     let mut cnt = 0;
+    let mut sum_sq=0;
     for r in sr..=er {
         for c0 in sc..=ec {
             let idx = (r * cols + c0) as usize;
-            depend(g, idx, dst as usize);
+            if idx != dst as usize{
+                depend(g, idx, dst as usize);
+            }else{
+                return false;
+            }
             sum += arr[idx];
             cnt += 1;
+            sum_sq += arr[idx]*arr[idx];
         }
     }
-    let avg = if cnt == 0 { 0.0 } else { sum as f64 / cnt as f64 };
-
-    let mut acc = 0.0;
-    for r in sr..=er {
-        for c0 in sc..=ec {
-            let idx = (r * cols + c0) as usize;
-            let d = arr[idx] as f64 - avg;
-            acc += d * d;
-        }
+    if cnt<=1 {
+        arr[dst as usize] = 0;
+        true
     }
-    arr[dst as usize] = (acc / cnt as f64).sqrt() as i32;
-    true
+    else {
+        let avg = sum/cnt;
+        let var=((sum_sq - 2 * sum * avg + avg * avg * cnt) as f64) / (cnt as f64);
+        arr[dst as usize] = var.sqrt().round() as i32;
+        true
+    }
 }
 
 pub fn sleep_func(

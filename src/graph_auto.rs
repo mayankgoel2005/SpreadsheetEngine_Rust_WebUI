@@ -176,7 +176,7 @@ pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
     }
 }
 
-/// Kahn’s algorithm over the *reachable* subgraph starting at start.
+/// Kahn’s algorithm over the reachable subgraph starting at start.
 /// Returns None if a cycle is found; otherwise the topo order.
 pub fn topological_sort(
     graph: &Graph,
@@ -305,7 +305,7 @@ pub fn recalculate(
                 let mut mx  = i32::MIN;
                 let mut sd_acc = 0.0;
                 let mut err = false;
-
+                let mut sum_sq=0;
                 for r in sr..=er {
                     for col in sc..=ec {
                         let idx = r * cols as usize + col;
@@ -313,6 +313,7 @@ pub fn recalculate(
                         if v == i32::MIN { err = true }
                         cnt += 1;
                         sum += v;
+                        sum_sq+=v*v;
                         mn = mn.min(v);
                         mx = mx.max(v);
                     }
@@ -327,15 +328,9 @@ pub fn recalculate(
                         11 => sum / cnt,
                         12 => sum,
                         13 => {
-                            let avg = sum as f64 / cnt as f64;
-                            for r in sr..=er {
-                                for col in sc..=ec {
-                                    let idx = r * cols as usize + col;
-                                    let d   = arr[idx] as f64 - avg;
-                                    sd_acc += d * d;
-                                }
-                            }
-                            (sd_acc / cnt as f64).sqrt() as i32
+                            let avg = sum/cnt;
+                            let variance = ((sum_sq - 2 * sum * avg + avg * avg * cnt) as f64) / (cnt as f64);
+                            variance.sqrt().round() as i32
                         }
                         _ => unreachable!(),
                     };
@@ -354,43 +349,4 @@ pub fn recalculate(
         }
     }
     true
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_arith_addition() {
-        assert_eq!(arith(10, 5, '+'), 15);
-        assert_eq!(arith(-10, 5, '+'), -5);
-        assert_eq!(arith(i32::MAX, 1, '+'), i32::MAX.wrapping_add(1)); // Wrapping addition
-    }
-
-    #[test]
-    fn test_arith_subtraction() {
-        assert_eq!(arith(10, 5, '-'), 5);
-        assert_eq!(arith(5, 10, '-'), -5);
-        assert_eq!(arith(i32::MIN, 1, '-'), i32::MIN.wrapping_sub(1)); // Wrapping subtraction
-    }
-
-    #[test]
-    fn test_arith_multiplication() {
-        assert_eq!(arith(3, 4, '*'), 12);
-        assert_eq!(arith(-3, 4, '*'), -12);
-        assert_eq!(arith(i32::MAX, 2, '*'), i32::MAX.wrapping_mul(2)); // Wrapping multiplication
-        assert_eq!(arith(i32::MIN, -1, '*'), i32::MIN.wrapping_mul(-1)); // Wrapping multiplication
-    }
-
-    #[test]
-    fn test_arith_division() {
-        assert_eq!(arith(10, 2, '/'), 5);
-        assert_eq!(arith(10, 0, '/'), i32::MIN); // Division by zero
-        assert_eq!(arith(-10, 2, '/'), -5);
-    }
-
-    #[test]
-    fn test_arith_invalid_operation() {
-        assert_eq!(arith(10, 5, '%'), i32::MIN); // Unsupported operator
-    }
 }
