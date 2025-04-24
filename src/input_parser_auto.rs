@@ -142,11 +142,16 @@ fn arth_op(
     // find operator
     let mut op_ind = None;
     let mut op_ch  = '+';
+    let mut seen_operand = false;
     for (i, ch) in txt[eq+1..].char_indices() {
         if "+-*/".contains(ch) {
-            op_ind = Some(eq + 1 + i);
-            op_ch  = ch;
-            break;
+            if seen_operand {
+                op_ind = Some(eq + 1 + i);
+                op_ch  = ch;
+                break;
+            }
+        } else if !ch.is_whitespace() {
+            seen_operand = true;
         }
     }
     let op_ind = match op_ind { Some(i) => i, None => return 1 };
@@ -173,6 +178,7 @@ fn arth_op(
     let left_val = if lneg { -left_val } else { left_val };
 
     // parse right
+    // parse right
     let (rneg, right_s) = if let Some(stripped) = right_s.strip_prefix('-') {
         (true, stripped.trim())
     } else if let Some(stripped) = right_s.strip_prefix('+') {
@@ -180,13 +186,16 @@ fn arth_op(
     } else {
         (false, right_s)
     };
-    let right_is_cell = right_s.chars().next().is_some_and(is_alpha);    let right_val = if right_is_cell {
+    let right_is_cell = right_s.chars().next().is_some_and(is_alpha);
+    let mut right_val = if right_is_cell {
         cell_parser(right_s, cols, rows)
     } else {
         right_s.parse::<i32>().unwrap_or(i32::MIN)
     };
     if right_val == i32::MIN { return 1 }
-    let right_val = if rneg { -right_val } else { right_val };
+
+
+    right_val = if rneg { -right_val } else { right_val };
 
     // dst
     let dst = cell_parser(&txt[..eq], cols, rows);
@@ -226,11 +235,11 @@ fn arth_op(
             depend(g, p1 as usize, dst);
             (p1, p2, base_op)           // cell+lit => ops 1..4
         }
-        (false, true ) => {
-            let p1 = right_val.abs() ;
-            let p2 = left_val;
+        (false, true) => {
+            let p1 = right_val.abs(); // B1
+            let p2 = left_val;        // 10
             depend(g, p1 as usize, dst);
-            (p1, p2, base_op + 4)       // lit+cell treat as cell+cell
+            (p1, p2, base_op) // ❗ Use base_op, NOT base_op + 4
         }
         (false, false) => {
             // pure literal+literal → constant
@@ -265,22 +274,30 @@ fn funct(
     g:   &mut Graph,
     farr:&mut [Formula],
 ) -> i32 {
-    let ok = if txt[eq+1..].starts_with("MIN(") {
-        min_func(txt, cols, rows, eq, arr, g, farr)
-    } else if txt[eq+1..].starts_with("MAX(") {
-        max_func(txt, cols, rows, eq, arr, g, farr)
-    } else if txt[eq+1..].starts_with("AVG(") {
-        avg_func(txt, cols, rows, eq, arr, g, farr)
-    } else if txt[eq+1..].starts_with("SUM(") {
-        sum_func(txt, cols, rows, eq, arr, g, farr)
-    } else if txt[eq+1..].starts_with("STDEV(") {
-        standard_dev_func(txt, cols, rows, eq, arr, g, farr)
-    } else if txt[eq+1..].starts_with("SLEEP(") {
-        sleep_func(txt, cols, rows, eq, arr, g, farr)
+    let rhs = &txt[eq+1..].trim();
+
+let (func_name, func_handler): (&str, fn(&str, i32, i32, usize, &mut [i32], &mut Graph, &mut [Formula]) -> bool) =
+    if rhs.starts_with("MIN(") && rhs.ends_with(')') {
+        ("MIN", min_func)
+    } else if rhs.starts_with("MAX(") && rhs.ends_with(')') {
+        ("MAX", max_func)
+    } else if rhs.starts_with("AVG(") && rhs.ends_with(')') {
+        ("AVG", avg_func)
+    } else if rhs.starts_with("SUM(") && rhs.ends_with(')') {
+        ("SUM", sum_func)
+    } else if rhs.starts_with("STDEV(") && rhs.ends_with(')') {
+        ("STDEV", standard_dev_func)
+    } else if rhs.starts_with("SLEEP(") && rhs.ends_with(')') {
+        ("SLEEP", sleep_func)
     } else {
-        return 1;
+        return 1; // ❌ invalid or malformed function call
     };
-    if !ok { return 1 }
+
+    let ok = func_handler(txt, cols, rows, eq, arr, g, farr);
+    if !ok {
+        return 1;
+    }
+
     // re‐run recalc on dst
     let dst = cell_parser(&txt[..eq], cols, rows) as usize;
     if !recalculate(g, cols, arr, dst, farr) {
@@ -303,7 +320,14 @@ pub fn parser(sheet: &mut Spreadsheet, txt: &str) -> i32 {
     let g    = &mut sheet.graph;
     let farr = &mut sheet.formula_array;
 
-    let eq = txt.find('=').unwrap_or(usize::MAX);
+    let eq_indices: Vec<_> = txt.match_indices('=').collect();
+    if eq_indices.len() != 1 {
+        return -1; // invalid if not exactly one '='
+    }
+    let (eq, _) = eq_indices[0];
+    if txt[eq..].starts_with("==") || txt[eq..].starts_with(">=") || txt[eq..].starts_with("<=") || txt[eq..].starts_with("!=") {
+        return -1;
+    }
     if eq == usize::MAX { return -1 }
 
     // classify

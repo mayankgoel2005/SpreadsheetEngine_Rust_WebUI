@@ -89,10 +89,8 @@ fn main() {
                 || trimmed == "d"
                 || trimmed.starts_with("scroll_to ")
             {
-                scrolling::scroller(trimmed, &mut spreadsheet);
+                status = scrolling::scroller(trimmed, &mut spreadsheet);
             } else {
-                // IMPORTANT: Call the new parser function with a mutable reference
-                // and the input command (formula) as a string.
                 status = input_parser::parser(&mut spreadsheet, trimmed);
             }
 
@@ -107,7 +105,7 @@ fn main() {
                 );
             }
             // Print prompt without newline, then flush
-            if status != 1 {
+            if status == 0 {
                 print!("[{:.1}] (ok) > ", elapsed);
             } else {
                 print!("[{:.1}] (err) > ", elapsed);

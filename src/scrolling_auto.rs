@@ -9,7 +9,7 @@ pub fn scroll_to(spreadsheet: &mut Spreadsheet, row: usize, col: usize) {
 }
 
 /// Handle commands, including "scroll_to A1"
-pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) {
+pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) -> i32 {
     // If command is of form "scroll_to CELL"
     if let Some(arg) = cmd.strip_prefix("scroll_to ") {
         let cell = arg.trim();
@@ -24,11 +24,13 @@ pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) {
             let row = idx / spreadsheet.cols;
             let col = idx % spreadsheet.cols;
             scroll_to(spreadsheet, row, col);
+            return 0; // success
+        } else {
+            return 1; // error
         }
-        return;
     }
 
-    // Otherwise, fallback to existing scroll logic
+    // Fallback to scroll movement (w, a, s, d)
     scroller_display(
         cmd,
         &spreadsheet.arr,
@@ -38,6 +40,7 @@ pub fn scroller(cmd: &str, spreadsheet: &mut Spreadsheet) {
         spreadsheet.rows,
         &mut spreadsheet.graph,
     );
+    0 // assume other commands like 'w'/'a'/'s'/'d' are always valid
 }
 
 /// Scroll up by a page (10 rows)
