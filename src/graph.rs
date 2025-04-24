@@ -1026,4 +1026,150 @@ mod tests {
         assert!(result);
         assert_eq!(arr[8], 5); // Maximum value in range
     }
+    #[test]
+    fn test_delete_edge_range_vertical() {
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 9, // MIN operation
+                p1: 0,
+                p2: 6,
+            };
+            9
+        ];
+        let cols = 3;
+
+        // Add vertical range dependencies
+        for r in 0..=2 {
+            let src = r * cols;
+            graph.adj.entry(src).or_default().push(8);
+        }
+
+        // Delete the edge
+        delete_edge(&mut graph, 8, &formula_array, cols);
+
+        // Assert that all dependencies are removed
+        for r in 0..=2 {
+            let src = r * cols;
+            assert!(!graph.adj.contains_key(&src));
+        }
+    }
+
+    #[test]
+    fn test_delete_edge_range_horizontal() {
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 10, // MAX operation
+                p1: 0,
+                p2: 2,
+            };
+            9
+        ];
+        let cols = 3;
+
+        // Add horizontal range dependencies
+        for c in 0..=2 {
+            graph.adj.entry(c).or_default().push(8);
+        }
+
+        // Delete the edge
+        delete_edge(&mut graph, 8, &formula_array, cols);
+
+        // Assert that all dependencies are removed
+        for c in 0..=2 {
+            assert!(!graph.adj.contains_key(&c));
+        }
+    }
+
+    #[test]
+    fn test_delete_edge_range_invalid_rectangle() {
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 11, // AVG operation
+                p1: 0,
+                p2: 8,
+            };
+            9
+        ];
+        let cols = 3;
+
+        // Add dependencies for an invalid rectangle
+        for r in 0..=2 {
+            for c in 0..=2 {
+                let src = r * cols + c;
+                graph.adj.entry(src).or_default().push(8);
+            }
+        }
+
+        // Delete the edge
+        delete_edge(&mut graph, 8, &formula_array, cols);
+
+        // Assert that dependencies are not removed for invalid rectangles
+        for r in 0..=2 {
+            for c in 0..=2 {
+                let src = r * cols + c;
+                assert!(graph.adj.contains_key(&src));
+            }
+        }
+    }
+
+    #[test]
+    fn test_delete_edge_range_sum_vertical() {
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 12, // SUM operation
+                p1: 0,
+                p2: 6,
+            };
+            9
+        ];
+        let cols = 3;
+
+        // Add vertical range dependencies
+        for r in 0..=2 {
+            let src = r * cols;
+            graph.adj.entry(src).or_default().push(8);
+        }
+
+        // Delete the edge
+        delete_edge(&mut graph, 8, &formula_array, cols);
+
+        // Assert that all dependencies are removed
+        for r in 0..=2 {
+            let src = r * cols;
+            assert!(!graph.adj.contains_key(&src));
+        }
+    }
+
+    #[test]
+    fn test_delete_edge_range_stdev_horizontal() {
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 13, // STDEV operation
+                p1: 3,
+                p2: 5,
+            };
+            9
+        ];
+        let cols = 3;
+
+        // Add horizontal range dependencies
+        for c in 0..=2 {
+            let src = cols + c;
+            graph.adj.entry(src).or_default().push(8);
+        }
+
+        // Delete the edge
+        delete_edge(&mut graph, 8, &formula_array, cols);
+
+        // Assert that all dependencies are removed
+        for c in 0..=2 {
+            let src = cols + c;
+            assert!(!graph.adj.contains_key(&src));
+        }
+    }
 }
