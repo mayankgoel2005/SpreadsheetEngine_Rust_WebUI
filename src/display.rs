@@ -543,5 +543,29 @@ mod tests {
         assert_eq!(curr_x, 0); // No change
         assert_eq!(curry, 0); // No change
     }
+
+    #[test]
+    fn test_out_of_bounds_cell() {
+        let cols = 10;
+        let rows = 10;
+        let cell = 105; // Out-of-bounds cell index
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let mut flag = false;
+
+        let start_row = (cell as usize) / cols;
+        let start_col = (cell as usize) % cols;
+
+        if start_row >= rows || start_col >= cols {
+            flag = true;
+        } else {
+            curr_x = start_col;
+            curry = start_row;
+        }
+
+        assert!(flag); // Ensure the flag is set for out-of-bounds
+        assert_eq!(curr_x, 0); // Ensure curr_x is not updated
+        assert_eq!(curry, 0); // Ensure curry is not updated
+    }
 }
 

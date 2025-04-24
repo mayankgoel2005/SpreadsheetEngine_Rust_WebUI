@@ -64,3 +64,33 @@ pub fn initialize_spreadsheet(rows: usize, cols: usize) -> Spreadsheet {
 pub fn print_spreadsheet(spreadsheet: &Spreadsheet) {
     spreadsheet.print();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_initialize_spreadsheet() {
+        let rows = 5;
+        let cols = 10;
+        let spreadsheet = initialize_spreadsheet(rows, cols);
+
+        assert_eq!(spreadsheet.rows, rows);
+        assert_eq!(spreadsheet.cols, cols);
+        assert_eq!(spreadsheet.arr.len(), rows * cols);
+        assert!(spreadsheet.arr.iter().all(|&x| x == 0)); // All cells initialized to 0
+        assert_eq!(spreadsheet.curr_x, 0);
+        assert_eq!(spreadsheet.curry, 0);
+        assert!(spreadsheet.formula_array.iter().all(|f| f.op_type == 0)); // All formulas initialized
+    }
+
+    #[test]
+    fn test_print_spreadsheet() {
+        let rows = 5;
+        let cols = 5;
+        let spreadsheet = initialize_spreadsheet(rows, cols);
+
+        // Ensure the print_spreadsheet function runs without panicking
+        print_spreadsheet(&spreadsheet);
+    }
+}

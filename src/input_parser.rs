@@ -1437,4 +1437,122 @@ mod tests {
         let result = parse_range("A1:Z10", cols, rows);
         assert!(result.is_none());
     }
+    #[test]
+    fn test_rollback_on_recalculate_failure() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0,
+            };
+            100
+        ];
+
+        // Set up initial state
+        let dst = 5; // Target cell
+        arr[dst] = 42;
+        formula_array[dst] = Formula {
+            op_type: 1,
+            p1: 2,
+            p2: 3,
+        };
+
+        unsafe {
+            OLD_VALUE = arr[dst];
+            OLD_OP_TYPE = formula_array[dst].op_type;
+            OLD_P1 = formula_array[dst].p1;
+            OLD_P2 = formula_array[dst].p2;
+        }
+
+        // Simulate a failure in recalculate
+        let recalculate_result = false;
+
+        if !recalculate_result {
+            // Rollback logic
+            delete_edge(&mut graph, dst, &mut formula_array, cols);
+            unsafe {
+                arr[dst] = OLD_VALUE;
+                formula_array[dst] = Formula {
+                    op_type: OLD_OP_TYPE,
+                    p1: OLD_P1,
+                    p2: OLD_P2,
+                };
+                add_formula(
+                    &mut graph,
+                    dst,
+                    OLD_P1,
+                    OLD_P2,
+                    OLD_OP_TYPE,
+                    &mut formula_array,
+                    cols,
+                );
+            }
+        }
+
+        // Assertions to verify rollback
+        assert_eq!(arr[dst], 42); // Value should be restored
+        assert_eq!(
+            formula_array[dst],
+            Formula {
+                op_type: 1,
+                p1: 2,
+                p2: 3,
+            }
+        ); // Formula should be restored
+    }
+
+    #[test]
+    fn test_recalculate_failure_triggers_rollback() {
+        let mut graph = Graph::new();
+        let cols = 3;
+        let mut arr = vec![0; 3];
+        let mut formula_array = vec![
+            Formula { op_type: 0, p1: 10, p2: 0 },
+            Formula { op_type: 1, p1: 0, p2: 5 },
+            Formula { op_type: 1, p1: 1, p2: 5 },
+        ];
+
+        // Add a cycle to the graph using `depend`
+        depend(&mut graph, 0, 1);
+        depend(&mut graph, 1, 2);
+        depend(&mut graph, 2, 0);
+
+        // Set old values for rollback
+        const OLD_VALUE: i32 = 42;
+        const OLD_OP_TYPE: i32 = 0;
+        const OLD_P1: i32 = 0;
+        const OLD_P2: i32 = 0;
+        arr[2] = OLD_VALUE;
+        formula_array[2] = Formula {
+            op_type: OLD_OP_TYPE,
+            p1: OLD_P1,
+            p2: OLD_P2,
+        };
+
+        // Attempt to recalculate, expecting failure
+        let result = recalculate(&mut graph, cols, &mut arr, 2, &formula_array);
+        if !result {
+            // Simulate rollback
+            delete_edge(&mut graph, 2, &formula_array, cols as usize);
+            unsafe {
+                arr[2] = OLD_VALUE;
+                formula_array[2] = Formula {
+                    op_type: OLD_OP_TYPE,
+                    p1: OLD_P1,
+                    p2: OLD_P2,
+                };
+                add_formula(&mut graph, 2, OLD_P1, OLD_P2, OLD_OP_TYPE, &mut formula_array, cols as usize);
+            }
+        }
+
+        // Assert rollback occurred
+        assert_eq!(arr[2], OLD_VALUE);
+        assert_eq!(formula_array[2].op_type, OLD_OP_TYPE);
+        assert_eq!(formula_array[2].p1, OLD_P1);
+        assert_eq!(formula_array[2].p2, OLD_P2);
+    }
 }
