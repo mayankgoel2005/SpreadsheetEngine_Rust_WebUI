@@ -18,6 +18,7 @@ ext1:
 clean:
 	cargo clean
 	rm -rf dist build
+	rm -f report.pdf report.aux report.log report.out report.toc
 
 coverage:
 	cargo tarpaulin --out Html
@@ -25,18 +26,16 @@ coverage:
 test:
 	cargo test
 
-docs: cargo-doc
+docs: cargo-doc report
 
 cargo-doc:
 	cargo doc --no-deps --open
 
 report: report.pdf
-	# On macOS, use 'open'; on Linux, you might use 'xdg-open'
 	open report.pdf
 
 report.pdf: report.tex
-	pdflatex report.tex
-	# Running pdflatex a second time for proper reference resolution (optional)
-	pdflatex report.tex
+	pdflatex report.tex > /dev/null 2>&1
+	pdflatex report.tex > /dev/null 2>&1
 
 .PHONY: all build run extension clean coverage test docs cargo-doc report

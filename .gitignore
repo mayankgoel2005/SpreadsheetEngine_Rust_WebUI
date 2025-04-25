@@ -8,3 +8,8 @@ Cargo.lock
 index.js
 extension
 tarpaulin_20250424022722.json
+report.pdf
+report.aux
+report.log
+report.out
+report.toc
