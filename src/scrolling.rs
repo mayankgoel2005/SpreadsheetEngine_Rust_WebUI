@@ -24,8 +24,8 @@ use crate::spreadsheet::Spreadsheet;
 /// # Examples
 ///
 /// ```
-/// # use my_crate::display::scroller;
-/// # use my_crate::spreadsheet::initialize_spreadsheet;
+/// # use lab1::scrolling::scroller;
+/// # use lab1::spreadsheet::initialize_spreadsheet;
 /// let mut sheet = initialize_spreadsheet(100, 100);
 /// // Jump to C5:
 /// scroller("scroll_to C5", &mut sheet);

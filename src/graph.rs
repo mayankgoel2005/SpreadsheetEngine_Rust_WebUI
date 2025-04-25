@@ -253,11 +253,11 @@ pub fn arith(v1: i32, v2: i32, op: char) -> i32 {
 /// # Examples
 ///
 /// ```rust
-/// use lab1::graph::{Graph, add_formula, topological_sort};
+/// use lab1::graph::{Graph, Formula, add_formula, topological_sort};
 ///
 /// // Build chain 0 → 1 → 2
 /// let mut g = Graph::new();
-/// let mut f = vec![super::Formula { op_type:0, p1:0, p2:0 }; 3];
+/// let mut f = vec![Formula { op_type:0, p1:0, p2:0 }; 3];
 /// add_formula(&mut g, 1, 0, 0, 1, &mut f, 3); // 1 depends on 0
 /// add_formula(&mut g, 2, 1, 0, 1, &mut f, 3); // 2 depends on 1
 ///

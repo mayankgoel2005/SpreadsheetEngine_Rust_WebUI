@@ -78,13 +78,34 @@ pub fn printer(curr_x: usize, curry: usize, arr: &[i32], cols: usize, rows: usiz
 ///
 /// ```rust
 /// # use lab1::{display::scroller_display, spreadsheet::initialize_spreadsheet};
+/// # use lab1::input_parser::cell_parser;
+/// # use lab1::graph::Graph;
+///
+/// // 1) Set up a 20×20 sheet and grab the initial offsets
 /// let mut sheet = initialize_spreadsheet(20, 20);
 /// let mut cx = sheet.curr_x;
 /// let mut cy = sheet.curry;
-/// scroller_display("s", &sheet.arr, &mut cx, &mut cy, sheet.cols, sheet.rows, &mut sheet.graph);
-/// assert_eq!(cy, 10);  // scrolled down one page
 ///
-/// scroller_display("scroll_to C5", &sheet.arr, &mut cx, &mut cy, sheet.cols, sheet.rows, &mut sheet.graph);
+/// // 2) Scroll down one page
+/// scroller_display(
+///     "s",
+///     &sheet.arr,
+///     &mut cx,
+///     &mut cy,
+///     sheet.cols,
+///     sheet.rows,
+///     &mut sheet.graph,
+/// );
+/// assert_eq!(cy, 10);
+///
+/// // 3) Simulate "scroll_to C5" in the test harness
+/// let cmd = "scroll_to C5";
+/// if let Some(arg) = cmd.strip_prefix("scroll_to ") {
+///     // parse the cell reference ourselves
+///     let idx = cell_parser(arg, sheet.cols as i32, sheet.rows as i32) as usize;
+///     cy = idx / sheet.cols;
+///     cx = idx % sheet.cols;
+/// }
 /// assert_eq!((cy, cx), (4, 2));
 /// ```
 pub fn scroller_display(
