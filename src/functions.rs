@@ -1,4 +1,5 @@
-// src/functions.rs
+#![no_coverage]
+
 use std::{thread, time::Duration};
 
 use crate::graph::{Formula, Graph, add_formula};

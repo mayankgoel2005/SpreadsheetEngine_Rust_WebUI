@@ -557,4 +557,124 @@ mod tests {
         assert_eq!(curr_x, 0); // Ensure curr_x is not updated
         assert_eq!(curry, 0); // Ensure curry is not updated
     }
+    #[test]
+    fn test_column_index_to_name_edge_cases() {
+        assert_eq!(column_index_to_name(25), "Z");
+        assert_eq!(column_index_to_name(26), "AA");
+        assert_eq!(column_index_to_name(51), "AZ");
+        assert_eq!(column_index_to_name(52), "BA");
+        assert_eq!(column_index_to_name(701), "ZZ");
+        assert_eq!(column_index_to_name(702), "AAA");
+    }
+
+    #[test]
+    fn test_printer_basic() {
+        let cols = 5;
+        let rows = 5;
+        let arr = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
+        printer(0, 0, &arr, cols, rows);
+        // This is a visual test, but we can capture output if needed
+    }
+
+    #[test]
+    fn test_printer_with_errors() {
+        let cols = 3;
+        let rows = 3;
+        let arr = vec![1, i32::MIN, 3, 4, 5, 6, 7, 8, 9];
+        printer(0, 0, &arr, cols, rows);
+        // Visual test for ERR display
+    }
+
+    #[test]
+    fn test_printer_partial_view() {
+        let cols = 10;
+        let rows = 20;
+        let arr = vec![0; cols * rows];
+        printer(5, 10, &arr, cols, rows);
+        // Test partial window display
+    }
+
+    #[test]
+    fn test_scroller_display_edge_cases() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new();
+        let arr = vec![0; cols * rows];
+
+        // Test scroll up at top boundary
+        scroller_display("w", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0);
+        assert_eq!(curry, 0);
+
+        // Test scroll left at left boundary
+        scroller_display("a", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0);
+        assert_eq!(curry, 0);
+
+        // Test scroll down at bottom boundary
+        let mut curry = 9;
+        scroller_display("s", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0);
+        assert_eq!(curry, 9);
+
+        // Test scroll right at right boundary
+        let mut curr_x = 9;
+        scroller_display("d", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 9);
+        assert_eq!(curry, 9);
+    }
+
+    #[test]
+    fn test_render_spreadsheet_empty() {
+        let cols = 0;
+        let rows = 0;
+        let arr = vec![];
+        let output = render_spreadsheet(0, 0, &arr, cols, rows);
+        assert!(output.contains("<table"));
+        assert!(!output.contains("<td")); // No cells should be rendered
+    }
+
+    #[test]
+    fn test_render_spreadsheet_large() {
+        let cols = 30;
+        let rows = 30;
+        let arr = vec![0; cols * rows];
+        let output = render_spreadsheet(0, 0, &arr, cols, rows);
+        assert!(output.contains("AA")); // Should contain multi-letter column headers
+        assert!(output.contains("30")); // Should contain max row number
+    }
+
+    #[test]
+    fn test_scroller_display_invalid_scroll_to() {
+        let mut curr_x = 0;
+        let mut curry = 0;
+        let cols = 10;
+        let rows = 10;
+        let mut graph = Graph::new();
+        let arr = vec![0; cols * rows];
+
+        // Invalid format
+        scroller_display("scroll_to invalid", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0);
+        assert_eq!(curry, 0);
+
+        // Empty cell reference
+        scroller_display("scroll_to ", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        assert_eq!(curr_x, 0);
+        assert_eq!(curry, 0);
+    }
+
+    #[test]
+    fn test_printer_edge_cases() {
+        // Test empty spreadsheet
+        printer(0, 0, &[], 0, 0);
+
+        // Test single cell spreadsheet
+        printer(0, 0, &[42], 1, 1);
+
+        // Test viewport larger than spreadsheet
+        printer(0, 0, &[1, 2, 3, 4], 2, 2);
+    }
 }

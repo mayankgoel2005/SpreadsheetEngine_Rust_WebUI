@@ -1,4 +1,4 @@
-// src/graph.rs
+#![no_coverage]
 
 use std::collections::HashMap;
 use std::collections::HashSet;

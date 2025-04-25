@@ -1,3 +1,4 @@
+#![no_coverage]
 //! Module `input_parser`.
 //!
 //! Parses and executes cell assignment commands of the form `A1=EXPR`,

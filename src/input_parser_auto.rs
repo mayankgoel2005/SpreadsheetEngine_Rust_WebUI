@@ -1622,4 +1622,135 @@ mod tests {
         assert_eq!(formula_array[2].p1, OLD_P1);
         assert_eq!(formula_array[2].p2, OLD_P2);
     }
+    #[test]
+    fn test_cell_parser_multi_letter() {
+        // "AA1" → col = 26, row = 0 → index = 26
+        assert_eq!(cell_parser("AA1", 30, 10), 26);
+    }
+
+    #[test]
+    fn test_cell_parser_lowercase_rejected() {
+        // only ASCII uppercase allowed
+        assert_eq!(cell_parser("a1", 10, 10), -1);
+    }
+
+    #[test]
+    fn test_cell_parser_invalid_char() {
+        // '$' is not a valid part of a cell name
+        assert_eq!(cell_parser("A$1", 10, 10), -1);
+    }
+
+    #[test]
+    fn test_cell_parser_out_of_bounds_col() {
+        // columns < Z (25) means "Z1" is invalid
+        assert_eq!(cell_parser("Z1", 5, 5), -1);
+    }
+
+    #[test]
+    fn test_value_func_unary_plus_literal() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        let res = parser(&mut sheet, "A1=+5");
+        assert_eq!(res, 0);
+        assert_eq!(sheet.arr[0], 5);
+        assert_eq!(sheet.formula_array[0], Formula { op_type: 0, p1: 5, p2: 0 });
+    }
+
+    #[test]
+    fn test_value_func_unary_plus_cell() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        sheet.arr[1] = 7; // B1 = 7
+        let res = parser(&mut sheet, "A1=+B1");
+        assert_eq!(res, 0);
+        assert_eq!(sheet.arr[0], 7);
+        assert_eq!(sheet.formula_array[0].p1, 1);
+    }
+
+    #[test]
+    fn test_arth_op_reject_unary_minus_left_cell() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        let ret = arth_op(
+            "C1=-A1+B1",
+            10,
+            10,
+            2,
+            &mut sheet.arr,
+            &mut sheet.graph,
+            &mut sheet.formula_array,
+        );
+        assert_eq!(ret, 1);
+    }
+
+    #[test]
+    fn test_arth_op_reject_unary_minus_right_cell() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        sheet.arr[0] = 1;
+        let ret = arth_op(
+            "C1=A1+-B1",
+            10,
+            10,
+            2,
+            &mut sheet.arr,
+            &mut sheet.graph,
+            &mut sheet.formula_array,
+        );
+        assert_eq!(ret, 1);
+    }
+
+    #[test]
+    fn test_arth_op_invalid_operator() {
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut farr = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        arr[0] = 1;
+        arr[1] = 2;
+        let ret = arth_op("C1=A1^B1", 10, 10, 2, &mut arr, &mut graph, &mut farr);
+        assert_eq!(ret, 1);
+    }
+
+    #[test]
+    fn test_arth_op_literal_minus_literal() {
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut farr = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let ret = arth_op("C1=5-10", 10, 10, 2, &mut arr, &mut graph, &mut farr);
+        assert_eq!(ret, 0);
+        assert_eq!(arr[2], -5);
+        assert_eq!(farr[2], Formula { op_type: 0, p1: -5, p2: 0 });
+    }
+
+    #[test]
+    fn test_parser_double_equals() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        assert_eq!(parser(&mut sheet, "A1==5"), -1);
+    }
+
+    #[test]
+    fn test_parser_missing_equal() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        assert_eq!(parser(&mut sheet, "A1B1"), -1);
+    }
+
+    #[test]
+    fn test_parse_range_reversed() {
+        // parse_range does _not_ enforce start ≤ end, so we exercise that path
+        let rng = parse_range("B2:A1", 10, 10).unwrap();
+        assert_eq!(rng.start_row, 1);
+        assert_eq!(rng.end_row, 0);
+        assert_eq!(rng.start_col, 1);
+        assert_eq!(rng.end_col, 0);
+    }
+
+    #[test]
+    fn test_funct_invalid_parentheses() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        // missing trailing ')'
+        assert_eq!(parser(&mut sheet, "D1=MIN(A1:C1"), 1);
+    }
+
+    #[test]
+    fn test_parser_function_misclassified() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        // contains '(' → treated as funct → invalid
+        assert_eq!(parser(&mut sheet, "A1=(A1+B1)"), 1);
+    }
 }
