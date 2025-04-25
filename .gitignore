@@ -1,6 +1,7 @@
 .DS_Store
 .idea
-.vscodetarget/
+.vscode
+target/
 dist/
 *.wasm
 target
