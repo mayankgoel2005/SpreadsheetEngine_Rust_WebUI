@@ -75,11 +75,11 @@ We have run the web version on Port 8080 (localhost). This is because Port 80 re
 To change 8080 to Port 80, you can modify the Makefile as follows:
 Change 
 ```sh
-	trunk serve --features wasm --open
+trunk serve --features wasm --open
 ```
 to 
 ```sh
-	sudo trunk serve --features wasm --open --port 80
+sudo trunk serve --features wasm --open --port 80
 ```
 
 
