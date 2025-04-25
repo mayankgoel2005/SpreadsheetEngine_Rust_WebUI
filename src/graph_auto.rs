@@ -13,7 +13,7 @@ use std::fmt;
 ///    5–8 = "cell ±/* cell"
 ///    9–13 = MIN, MAX, AVG, SUM, STDEV over a range [p1..p2]
 ///    14 = SLEEP
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Formula {
     pub op_type: i32,
     pub p1: i32,

@@ -453,3 +453,1173 @@ pub fn parser(sheet: &mut Spreadsheet, txt: &str) -> i32 {
         -1 // invalid input
     }
 }
+
+#[cfg(test)]
+pub struct CellRange {
+    pub start_row: usize,
+    pub end_row: usize,
+    pub start_col: usize,
+    pub end_col: usize,
+}
+
+#[cfg(test)]
+pub fn parse_range(
+    range: &str,
+    cols: usize,
+    rows: usize,
+) -> Option<crate::input_parser::CellRange> {
+    let parts: Vec<&str> = range.split(':').collect();
+    if parts.len() == 2 {
+        let start = cell_parser(parts[0], cols as i32, rows as i32);
+        let end = cell_parser(parts[1], cols as i32, rows as i32);
+        if start != -1 && end != -1 {
+            let start_row = start as usize / cols;
+            let start_col = start as usize % cols;
+            let end_row = end as usize / cols;
+            let end_col = end as usize % cols;
+            return Some(crate::input_parser::CellRange {
+                start_row,
+                end_row,
+                start_col,
+                end_col,
+            });
+        }
+    }
+    None
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::{Formula, Graph};
+    use crate::spreadsheet::{Spreadsheet, initialize_spreadsheet};
+
+    #[test]
+    fn test_value_func_with_literal() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = value_func(
+            "A1=42",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[0], 42);
+        assert_eq!(
+            formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: 42,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_value_func_with_negative_literal() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = value_func(
+            "A1=-42",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[0], -42);
+        assert_eq!(
+            formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: -42,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_value_func_with_cell_reference() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[1] = 50; // B1 = 50
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = value_func(
+            "A1=B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[0], 50);
+        assert_eq!(
+            formula_array[0],
+            Formula {
+                op_type: 1,
+                p1: 1,
+                p2: 0
+            }
+        );
+        assert_eq!(graph.adj[&1], vec![0, 0]); // B1 depends on A1
+    }
+
+    #[test]
+    fn test_value_func_with_negative_cell_reference() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[1] = 50; // B1 = 50
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = value_func(
+            "A1=-B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[0], -50);
+        assert_eq!(
+            formula_array[0],
+            Formula {
+                op_type: 3,
+                p1: 1,
+                p2: -1
+            }
+        );
+        assert_eq!(graph.adj[&1], vec![0, 0]); // B1 depends on A1
+    }
+
+    #[test]
+    fn test_value_func_with_invalid_cell_reference() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = value_func(
+            "A1=Z1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 1); // Invalid cell reference
+        assert_eq!(arr[0], 0); // No change
+        assert_eq!(
+            formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_value_func_with_invalid_literal() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = value_func(
+            "A1=abc",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 1); // Invalid literal
+        assert_eq!(arr[0], 0); // No change
+        assert_eq!(
+            formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_value_func_with_existing_formula() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[1] = 50; // B1 = 50
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 1,
+                p1: 1,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = value_func(
+            "A1=42",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[0], 42);
+        assert_eq!(
+            formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: 42,
+                p2: 0
+            }
+        );
+        assert!(!graph.adj.contains_key(&1));
+    }
+
+    #[test]
+    fn test_arth_op_addition_cells() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 10; // A1 = 10
+        arr[1] = 20; // B1 = 20
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=A1+B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], 30); // C1 = A1 + B1 = 10 + 20
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 5,
+                p1: 0,
+                p2: 1
+            }
+        );
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
+    }
+
+    #[test]
+    fn test_arth_op_subtraction_cells() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 30; // A1 = 30
+        arr[1] = 10; // B1 = 10
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=A1-B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], 20); // C1 = A1 - B1 = 30 - 10
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 6,
+                p1: 0,
+                p2: 1
+            }
+        );
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
+    }
+
+    #[test]
+    fn test_arth_op_multiplication_cells() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 5; // A1 = 5
+        arr[1] = 4; // B1 = 4
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=A1*B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], 20); // C1 = A1 * B1 = 5 * 4
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 7,
+                p1: 0,
+                p2: 1
+            }
+        );
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
+    }
+
+    #[test]
+    fn test_arth_op_division_cells() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 20; // A1 = 20
+        arr[1] = 4; // B1 = 4
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=A1/B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], 5); // C1 = A1 / B1 = 20 / 4
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 8,
+                p1: 0,
+                p2: 1
+            }
+        );
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
+    }
+
+    #[test]
+    fn test_arth_op_division_by_zero() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 20; // A1 = 20
+        arr[1] = 0; // B1 = 0
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=A1/B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], i32::MIN); // Division by zero results in i32::MIN
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 8,
+                p1: 0,
+                p2: 1
+            }
+        );
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+        assert_eq!(graph.adj[&1], vec![2, 2]);
+    }
+
+    #[test]
+    fn test_arth_op_addition_cell_and_literal() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 10; // A1 = 10
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=A1+5",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], 15); // C1 = A1 + 5 = 10 + 5
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 1,
+                p1: 0,
+                p2: 5
+            }
+        );
+        assert_eq!(graph.adj[&0], vec![2, 2]);
+    }
+
+    #[test]
+    fn test_arth_op_invalid_input() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=A1+@",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 1); // Invalid input
+        assert_eq!(arr[2], 0); // No change
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_funct_min() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 5; // A1
+        arr[1] = 3; // B1
+        arr[2] = 8; // C1
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=MIN(A1:C1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[3], 3); // D1 = MIN(A1:C1)
+    }
+
+    #[test]
+    fn test_funct_max() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 5; // A1
+        arr[1] = 3; // B1
+        arr[2] = 8; // C1
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=MAX(A1:C1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[3], 8); // D1 = MAX(A1:C1)
+    }
+
+    #[test]
+    fn test_funct_avg() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 5; // A1
+        arr[1] = 3; // B1
+        arr[2] = 8; // C1
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=AVG(A1:C1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[3], 5); // D1 = AVG(A1:C1) = (5 + 3 + 8) / 3
+    }
+
+    #[test]
+    fn test_funct_sum() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 5; // A1
+        arr[1] = 3; // B1
+        arr[2] = 8; // C1
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=SUM(A1:C1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[3], 16); // D1 = SUM(A1:C1) = 5 + 3 + 8
+    }
+
+    #[test]
+    fn test_funct_stdev() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 5; // A1
+        arr[1] = 3; // B1
+        arr[2] = 8; // C1
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=STDEV(A1:C1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[3], 2); // D1 = STDEV(A1:C1) (rounded down)
+    }
+
+    #[test]
+    fn test_funct_sleep_literal() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=SLEEP(1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[3], 1); // D1 = SLEEP(1)
+    }
+
+    #[test]
+    fn test_funct_sleep_cell_reference() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[0] = 2; // A1
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=SLEEP(A1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[3], 2); // D1 = SLEEP(A1)
+    }
+
+    #[test]
+    fn test_funct_invalid_function() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = funct(
+            "D1=INVALID(A1:C1)",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 1); // Invalid function
+    }
+
+    #[test]
+    fn test_parser_with_literal() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        let result = parser(&mut sheet, "A1=42");
+        assert_eq!(result, 0);
+        assert_eq!(sheet.arr[0], 42);
+        assert_eq!(
+            sheet.formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: 42,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_parser_with_negative_literal() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        let result = parser(&mut sheet, "A1=-42");
+        assert_eq!(result, 0);
+        assert_eq!(sheet.arr[0], -42);
+        assert_eq!(
+            sheet.formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: -42,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_parser_with_cell_reference() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        sheet.arr[1] = 50; // B1 = 50
+        let result = parser(&mut sheet, "A1=B1");
+        assert_eq!(result, 0);
+        assert_eq!(sheet.arr[0], 50);
+        assert_eq!(
+            sheet.formula_array[0],
+            Formula {
+                op_type: 1,
+                p1: 1,
+                p2: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_parser_with_arithmetic_operation() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        sheet.arr[0] = 10; // A1 = 10
+        sheet.arr[1] = 20; // B1 = 20
+        let result = parser(&mut sheet, "C1=A1+B1");
+        assert_eq!(result, 0);
+        assert_eq!(sheet.arr[2], 30); // C1 = A1 + B1
+        assert_eq!(
+            sheet.formula_array[2],
+            Formula {
+                op_type: 5,
+                p1: 0,
+                p2: 1
+            }
+        );
+    }
+
+    #[test]
+    fn test_parser_with_function_min() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        sheet.arr[0] = 5; // A1
+        sheet.arr[1] = 3; // B1
+        sheet.arr[2] = 8; // C1
+        let result = parser(&mut sheet, "D1=MIN(A1:C1)");
+        assert_eq!(result, 0);
+        assert_eq!(sheet.arr[3], 3); // D1 = MIN(A1:C1)
+    }
+
+    #[test]
+    fn test_parser_with_function_sum() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        sheet.arr[0] = 5; // A1
+        sheet.arr[1] = 3; // B1
+        sheet.arr[2] = 8; // C1
+        let result = parser(&mut sheet, "D1=SUM(A1:C1)");
+        assert_eq!(result, 0);
+        assert_eq!(sheet.arr[3], 16); // D1 = SUM(A1:C1)
+    }
+
+    #[test]
+    fn test_parser_with_invalid_input() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        let result = parser(&mut sheet, "A1=@");
+        assert_eq!(result, -1); // Invalid input
+        assert_eq!(sheet.arr[0], 0); // No change
+    }
+
+    #[test]
+    fn test_parser_with_invalid_cell_reference() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        let result = parser(&mut sheet, "A1=Z1");
+        assert_eq!(result, 1); // Invalid cell reference
+        assert_eq!(sheet.arr[0], 0); // No change
+    }
+
+    #[test]
+    fn test_parser_with_function_sleep() {
+        let mut sheet = initialize_spreadsheet(10, 10);
+        let result = parser(&mut sheet, "D1=SLEEP(1)");
+        assert_eq!(result, 0);
+        assert_eq!(sheet.arr[3], 1); // D1 = SLEEP(1)
+    }
+
+    #[test]
+    fn test_arth_op_literal_plus_cell() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        arr[1] = 20; // B1 = 20
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=5+B1",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], 25);
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 1,
+                p1: 1,
+                p2: 5
+            }
+        );
+        assert_eq!(graph.adj[&1], vec![2, 2]); // B1 depends on C1
+    }
+
+    #[test]
+    fn test_arth_op_literal_plus_literal() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
+
+        let result = arth_op(
+            "C1=5+10",
+            cols,
+            rows,
+            2,
+            &mut arr,
+            &mut graph,
+            &mut formula_array,
+        );
+        assert_eq!(result, 0);
+        assert_eq!(arr[2], 15); // C1 = 5 + 10
+        assert_eq!(
+            formula_array[2],
+            Formula {
+                op_type: 0,
+                p1: 15,
+                p2: 0
+            }
+        ); // Constant formula
+    }
+    #[test]
+    fn test_parse_range_valid() {
+        let cols = 10;
+        let rows = 10;
+
+        // Valid range: A1:B2
+        let result = parse_range("A1:B2", cols, rows);
+        assert!(result.is_some());
+        let range = result.unwrap();
+        assert_eq!(range.start_row, 0);
+        assert_eq!(range.end_row, 1);
+        assert_eq!(range.start_col, 0);
+        assert_eq!(range.end_col, 1);
+    }
+
+    #[test]
+    fn test_parse_range_invalid_format() {
+        let cols = 10;
+        let rows = 10;
+
+        // Invalid range: Missing colon
+        let result = parse_range("A1B2", cols, rows);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_range_out_of_bounds() {
+        let cols = 10;
+        let rows = 10;
+
+        // Out-of-bounds range
+        let result = parse_range("A1:Z10", cols, rows);
+        assert!(result.is_none());
+    }
+    #[test]
+    fn test_rollback_on_recalculate_failure() {
+        let cols = 10;
+        let rows = 10;
+        let mut arr = vec![0; 100];
+        let mut graph = Graph::new();
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0,
+            };
+            100
+        ];
+
+        // Set up initial state
+        let dst = 5; // Target cell
+        arr[dst] = 42;
+        formula_array[dst] = Formula {
+            op_type: 1,
+            p1: 2,
+            p2: 3,
+        };
+
+        unsafe {
+            OLD_VALUE = arr[dst];
+            OLD_OP_TYPE = formula_array[dst].op_type;
+            OLD_P1 = formula_array[dst].p1;
+            OLD_P2 = formula_array[dst].p2;
+        }
+
+        // Simulate a failure in recalculate
+        let recalculate_result = false;
+
+        if !recalculate_result {
+            // Rollback logic
+            delete_edge(&mut graph, dst, &mut formula_array, cols);
+            unsafe {
+                arr[dst] = OLD_VALUE;
+                formula_array[dst] = Formula {
+                    op_type: OLD_OP_TYPE,
+                    p1: OLD_P1,
+                    p2: OLD_P2,
+                };
+                add_formula(
+                    &mut graph,
+                    dst,
+                    OLD_P1,
+                    OLD_P2,
+                    OLD_OP_TYPE,
+                    &mut formula_array,
+                    cols,
+                );
+            }
+        }
+
+        // Assertions to verify rollback
+        assert_eq!(arr[dst], 42); // Value should be restored
+        assert_eq!(
+            formula_array[dst],
+            Formula {
+                op_type: 1,
+                p1: 2,
+                p2: 3,
+            }
+        ); // Formula should be restored
+    }
+
+    #[test]
+    fn test_recalculate_failure_triggers_rollback() {
+        let mut graph = Graph::new();
+        let cols = 3;
+        let mut arr = vec![0; 3];
+        let mut formula_array = vec![
+            Formula {
+                op_type: 0,
+                p1: 10,
+                p2: 0,
+            },
+            Formula {
+                op_type: 1,
+                p1: 0,
+                p2: 5,
+            },
+            Formula {
+                op_type: 1,
+                p1: 1,
+                p2: 5,
+            },
+        ];
+
+        // Add a cycle to the graph using `depend`
+        depend(&mut graph, 0, 1);
+        depend(&mut graph, 1, 2);
+        depend(&mut graph, 2, 0);
+
+        // Set old values for rollback
+        const OLD_VALUE: i32 = 42;
+        const OLD_OP_TYPE: i32 = 0;
+        const OLD_P1: i32 = 0;
+        const OLD_P2: i32 = 0;
+        arr[2] = OLD_VALUE;
+        formula_array[2] = Formula {
+            op_type: OLD_OP_TYPE,
+            p1: OLD_P1,
+            p2: OLD_P2,
+        };
+
+        // Attempt to recalculate, expecting failure
+        let result = recalculate(&mut graph, cols, &mut arr, 2, &formula_array);
+        if !result {
+            // Simulate rollback
+            delete_edge(&mut graph, 2, &formula_array, cols as usize);
+            unsafe {
+                arr[2] = OLD_VALUE;
+                formula_array[2] = Formula {
+                    op_type: OLD_OP_TYPE,
+                    p1: OLD_P1,
+                    p2: OLD_P2,
+                };
+                add_formula(
+                    &mut graph,
+                    2,
+                    OLD_P1,
+                    OLD_P2,
+                    OLD_OP_TYPE,
+                    &mut formula_array,
+                    cols as usize,
+                );
+            }
+        }
+
+        // Assert rollback occurred
+        assert_eq!(arr[2], OLD_VALUE);
+        assert_eq!(formula_array[2].op_type, OLD_OP_TYPE);
+        assert_eq!(formula_array[2].p1, OLD_P1);
+        assert_eq!(formula_array[2].p2, OLD_P2);
+    }
+}

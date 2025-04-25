@@ -154,8 +154,7 @@ pub fn update_formula(input: &str) -> Result<String, wasm_bindgen::prelude::JsVa
                         let mut column_data = Vec::new();
                         for row in cells.start_row..=cells.end_row {
                             let index = row * sheet.cols + col;
-                            if sheet.arr[index] == i32::MIN
-                            {
+                            if sheet.arr[index] == i32::MIN {
                                 return Err(JsValue::from_str("ERR in Graph"));
                             }
                             column_data.push(sheet.arr[index]);
