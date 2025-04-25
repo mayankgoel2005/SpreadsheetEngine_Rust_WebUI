@@ -12,7 +12,7 @@
 //! - `1` on any error (parse error, invalid cell, cycle detection, etc.)
 
 use crate::functions::{avg_func, max_func, min_func, sleep_func, standard_dev_func, sum_func};
-use crate::graph::{Formula, Graph, add_formula, arith, delete_edge, recalculate};
+use crate::graph::{add_formula, arith, delete_edge, recalculate, Formula, Graph};
 use crate::spreadsheet::Spreadsheet;
 
 /// Save+restore on rollback
@@ -491,7 +491,7 @@ pub fn parse_range(
 mod tests {
     use super::*;
     use crate::graph::{Formula, Graph};
-    use crate::spreadsheet::{Spreadsheet, initialize_spreadsheet};
+    use crate::spreadsheet::{initialize_spreadsheet, Spreadsheet};
 
     #[test]
     fn test_value_func_with_literal() {
@@ -1652,7 +1652,14 @@ mod tests {
         let res = parser(&mut sheet, "A1=+5");
         assert_eq!(res, 0);
         assert_eq!(sheet.arr[0], 5);
-        assert_eq!(sheet.formula_array[0], Formula { op_type: 0, p1: 5, p2: 0 });
+        assert_eq!(
+            sheet.formula_array[0],
+            Formula {
+                op_type: 0,
+                p1: 5,
+                p2: 0
+            }
+        );
     }
 
     #[test]
@@ -1700,7 +1707,14 @@ mod tests {
     fn test_arth_op_invalid_operator() {
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut farr = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut farr = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
         arr[0] = 1;
         arr[1] = 2;
         let ret = arth_op("C1=A1^B1", 10, 10, 2, &mut arr, &mut graph, &mut farr);
@@ -1711,11 +1725,25 @@ mod tests {
     fn test_arth_op_literal_minus_literal() {
         let mut arr = vec![0; 100];
         let mut graph = Graph::new();
-        let mut farr = vec![Formula { op_type: 0, p1: 0, p2: 0 }; 100];
+        let mut farr = vec![
+            Formula {
+                op_type: 0,
+                p1: 0,
+                p2: 0
+            };
+            100
+        ];
         let ret = arth_op("C1=5-10", 10, 10, 2, &mut arr, &mut graph, &mut farr);
         assert_eq!(ret, 0);
         assert_eq!(arr[2], -5);
-        assert_eq!(farr[2], Formula { op_type: 0, p1: -5, p2: 0 });
+        assert_eq!(
+            farr[2],
+            Formula {
+                op_type: 0,
+                p1: -5,
+                p2: 0
+            }
+        );
     }
 
     #[test]

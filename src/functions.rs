@@ -1,8 +1,6 @@
-#![no_coverage]
-
 use std::{thread, time::Duration};
 
-use crate::graph::{Formula, Graph, add_formula};
+use crate::graph::{add_formula, Formula, Graph};
 use crate::input_parser::cell_parser;
 
 /// insert dest into the dependents list of src, deduplicating

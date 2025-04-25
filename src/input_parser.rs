@@ -1,4 +1,3 @@
-#![no_coverage]
 //! Module `input_parser`.
 //!
 //! Parses and executes cell assignment commands of the form `A1=EXPR`,
@@ -13,7 +12,7 @@
 //! - `1` on any error (parse error, invalid cell, cycle detection, etc.)
 
 use crate::functions::{avg_func, max_func, min_func, sleep_func, standard_dev_func, sum_func};
-use crate::graph::{Formula, Graph, add_formula, arith, delete_edge, recalculate};
+use crate::graph::{add_formula, arith, delete_edge, recalculate, Formula, Graph};
 use crate::spreadsheet::Spreadsheet;
 
 /// Save+restore on rollback
@@ -445,7 +444,7 @@ pub fn parser(sheet: &mut Spreadsheet, txt: &str) -> i32 {
 mod tests {
     use super::*;
     use crate::graph::{Formula, Graph};
-    use crate::spreadsheet::{Spreadsheet, initialize_spreadsheet};
+    use crate::spreadsheet::{initialize_spreadsheet, Spreadsheet};
 
     #[test]
     fn test_value_func_with_literal() {

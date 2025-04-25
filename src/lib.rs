@@ -81,7 +81,7 @@ pub use functions::{avg_func, max_func, min_func, sleep_func, standard_dev_func,
 pub use graph::{add_formula, arith, delete_edge, recalculate, topological_sort};
 pub use input_parser::parser as parse_input;
 pub use scrolling::{scroll_down, scroll_left, scroll_right, scroll_to, scroll_up, scroller};
-pub use spreadsheet::{Spreadsheet, initialize_spreadsheet, print_spreadsheet};
+pub use spreadsheet::{initialize_spreadsheet, print_spreadsheet, Spreadsheet};
 
 // Global spreadsheet state stored as thread-local storage.
 thread_local! {

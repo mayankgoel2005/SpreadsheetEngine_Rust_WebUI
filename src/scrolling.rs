@@ -100,7 +100,7 @@ pub fn scroll_right(spreadsheet: &mut Spreadsheet) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::spreadsheet::{Spreadsheet, initialize_spreadsheet};
+    use crate::spreadsheet::{initialize_spreadsheet, Spreadsheet};
 
     #[test]
     fn test_scroll_to() {

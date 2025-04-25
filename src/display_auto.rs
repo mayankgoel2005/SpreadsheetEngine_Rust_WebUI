@@ -571,7 +571,10 @@ mod tests {
     fn test_printer_basic() {
         let cols = 5;
         let rows = 5;
-        let arr = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
+        let arr = vec![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25,
+        ];
         printer(0, 0, &arr, cols, rows);
         // This is a visual test, but we can capture output if needed
     }
@@ -656,12 +659,28 @@ mod tests {
         let arr = vec![0; cols * rows];
 
         // Invalid format
-        scroller_display("scroll_to invalid", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        scroller_display(
+            "scroll_to invalid",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
         assert_eq!(curr_x, 0);
         assert_eq!(curry, 0);
 
         // Empty cell reference
-        scroller_display("scroll_to ", &arr, &mut curr_x, &mut curry, cols, rows, &mut graph);
+        scroller_display(
+            "scroll_to ",
+            &arr,
+            &mut curr_x,
+            &mut curry,
+            cols,
+            rows,
+            &mut graph,
+        );
         assert_eq!(curr_x, 0);
         assert_eq!(curry, 0);
     }
