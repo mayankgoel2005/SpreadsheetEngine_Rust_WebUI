@@ -67,10 +67,14 @@ cargo run --features cli
 
 ### Web (via `wasm-pack`)
 ```sh
-wasm-pack build --target web
-cd www
-npm install
-npm run start
+cargo install trunk
+rustup target add wasm32-unknown-unknown
+make ext1
+```
+
+### Report
+```sh
+sudo apt-get install texlive-full
 ```
 
 ## Export & Import
