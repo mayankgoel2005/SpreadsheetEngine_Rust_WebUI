@@ -244,6 +244,7 @@
           formulaInput.value = formula; // Display it in the formula bar
         } catch (err) {
           console.error("Failed to fetch formula:", err);
+          showErrorImage();
         }
       }
     });
@@ -267,8 +268,12 @@
             const res = await fetch(url);
             const data = await res.json();
             const series = data.values;
-            if (!series) return;
+            if (!series) 
 
+            {
+              showErrorImage();
+              return;
+            }
             for (let i = 0; i < days && i < series.length; i++) {
               const val = parseFloat(series[i].close);
               const cellFormula = `${col}${i + 1}=${Math.round(val)}`;
@@ -306,6 +311,7 @@
             }
           } catch (err) {
             console.error("Graph rendering failed:", err);
+            showErrorImage();
           }
           return;
         }
@@ -497,3 +503,4 @@
 </script>
 </body>
 </html>
+
