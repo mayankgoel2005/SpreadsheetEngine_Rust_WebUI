@@ -71,8 +71,8 @@ cargo install trunk
 rustup target add wasm32-unknown-unknown
 make ext1
 ```
-We have run the web version on Port 8080 (localhost).
-To change it to Port 80, you can modify the Makefile as follows:
+We have run the web version on Port 8080 (localhost). This is because Port 80 requires root privileges. 
+To change 8080 to Port 80, you can modify the Makefile as follows:
 Change 
 ```sh
 	trunk serve --features wasm --open
