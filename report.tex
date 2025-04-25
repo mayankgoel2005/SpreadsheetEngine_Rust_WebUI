@@ -1,0 +1,203 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{listings-rust}
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true}
+
+\title{Design and Software Architecture Report\\[4pt]
+\large Extended Spreadsheet in Rust + WebAssembly}
+\author{Ahilaan Saxena \and Mayank Goel \and Mohil Shukla}
+\date{April 2025}
+
+\begin{document}
+    \maketitle
+    \tableofcontents
+    \newpage
+
+    \section{Introduction}
+    This report documents the software design and architecture of our extended
+    spreadsheet application, delivered as a CLI as well as a web-based interface. It assesses which proposed features we could not implement, possible additional extensions, the core data structures, module interfaces, encapsulation strategies, and overall design rationale.
+
+    \section{Why Certain Proposed Extensions Were Not Implemented}
+    \label{sec:not-implemented}
+    While many proposed features were implemented, the following could not be completed within the project timeline due to technical complexity, lack of utility or time constraints:
+
+    \begin{enumerate}[leftmargin=1.5em]
+
+        \item \textbf{Track-Record Analysis \& Portfolio Management}  \\
+        Though some groups had used strategies like simple linear regression to predict stock prices, we chose to keep our interface restricted in this domain because stock prediction and portfolio management is a well-researched and vast field involving complex time series or other models. From a user's point of view, a basic spreadsheet software is not meant to serve this purpose. Hence, applying two or three standard functions like linear regression may even be detrimental.\\
+        Also, instead of just being able to check the closing prices of last n days, we could have supported custom data import based on date inputs if we had a bit more time. Real time trade could not be simulated due to the rate limits imposed by stock APIs.
+
+        \item \textbf{Cut/Copy/Paste of Ranges}  \\
+        Having already implemented undo and redo stack, we got a flavor of spreadsheet state manipulation so we did not find cut/copy/paste functionality to be that much of an intellectually challenging task to take on. Instead we spent time on optimizing the undo redo operation.
+
+        \item \textbf{Visualising Dependency Chains and other Functions}  \\
+        We did not find functions like median, mode to be useful from a stock point of view (mostly mean and stdev are useful which were already implemented). Similarly we felt visualising dependency chains had less utility after we had implemented a formula bar that displays the formula in the current cell.
+    \end{enumerate}
+
+    \section{Extra Extensions Delivered Beyond the Proposal}
+    \begin{description}
+        \item\textbf{Themes and Keyboard Shortcuts}\\
+        We tried to make the software user friendly by providing themes including a dark mode and a variety of keyboard shortcuts like \texttt{Ctrl + Z/Y} for undo/redo, \texttt{Ctrl + S} for exporting CSV, \texttt{Ctrl + G} for downloading graph PNG, \texttt{Ctrl + Shift + F} for toggling full screen, etc using \texttt{addEventListener} method.
+        \item\textbf{Line Graphs} \\
+        Aligning with our stock data import functionality, we implemented graphical visualizations (line charts in particular- used commonly in stock price vs time graphs). This was done using \texttt{Chart.js}.
+        \item\textbf{Export CSV} \\
+        To support data transfer to other spreadsheet software, we implemented the export CSV option by serializing the internal spreadsheet data to a CSV string (in Rust), passing that CSV string to JavaScript via WebAssembly bindings, and triggering a file download in the browser.
+    \end{description}
+
+    \section{Primary Data Structures}
+
+    Our spreadsheet is powered by just a few simple data containers that work together to store values, remember formulas, and keep track of what changes when.
+
+    \subsection{Cell and Value Representation}
+
+    Each grid cell can hold either a number, text, or an error marker.  In code, we kept it straightforward:
+
+    \begin{lstlisting}[language=Rust]
+// What each cell can contain
+enum Value {
+    Int(i32),       // e.g. 42
+    Float(f64),     // e.g. 3.14
+    Text(String),   // e.g. "Hello"
+    Error(String),  // e.g. "DIV/0"
+}
+
+// The cell itself
+struct Cell {
+    value: Value,             // The current stored result
+    formula: Option<Formula>, // If present, how to recalculate
+}
+    \end{lstlisting}
+
+    By keeping \texttt{value} separate from \texttt{formula}, we only recompute when something actually changes.  This also makes undo/redo and crash-recovery much simpler.
+
+    \subsection{Formula Syntax Tree}
+
+    When you type a formula like \texttt{SUM(A1:B2) + C3}, we parse it into a tiny “tree” of operations:
+
+    \begin{itemize}
+        \item A root node for the ``+''
+        \item A child node for \texttt{SUM(A1:B2)}
+        \item A child node for the cell reference \texttt{C3}
+    \end{itemize}
+
+    That tree shape lets us evaluate in steps, catch errors (like divide-by-zero), and even spot cycles before they crash.
+
+    \subsection{Dependency Graph}
+
+    To know which cells to recalculate when one changes, we keep a directed graph where:
+
+    \begin{itemize}
+        \item \textbf{Nodes} are cell coordinates—like `(3, 1)` for A3.
+        \item \textbf{Edges} point from a cell you changed to each cell that depends on it.
+        \item We store this in a \texttt{HashMap<(u16,u16), Vec<(u16,u16)>>}.
+        \item On every edit, we run a quick topological sort (linear in the number of cells\!) to recompute only the affected cells and detect any formula loops.
+    \end{itemize}
+
+    \subsection{Undo/Redo History}
+
+    Every time the user changes a cell or pastes a range, we push a small “operation” record onto an \texttt{undo} stack:
+
+    \begin{itemize}
+        \item \texttt{Op::SetValue(row, col, old\_value)}
+        \item \texttt{Op::ClearFormula(row, col, old\_formula)}
+        \item \texttt{Op::ImportRange(range, old\_cells)}
+    \end{itemize}
+
+    Undoing just pops from \texttt{undo} and applies the inverse to the sheet, while redoing pushes onto a separate \texttt{redo} stack.  Swapping stacks takes constant time.
+
+    \section{Module Interfaces}
+
+    We split the logic into clear pieces so each part only worries about its own job.
+
+    \begin{description}
+        \item[\texttt{spreadsheet}]
+        - Owns the 2D grid of \texttt{Cell}s
+        - Exposes methods like \texttt{set\_cell()}, \texttt{get\_cell()}, \texttt{eval\_cell()}, and \texttt{to\_csv()}.
+
+        \item[\texttt{parser}]
+        - Takes a formula string and returns either a small syntax tree or an error message.
+        - Doesn’t touch global state—easy to test on its own.
+
+        \item[\texttt{graph}]
+        - Builds and updates the dependency graph from parser output.
+        - Offers \texttt{add\_edge()}, \texttt{delete\_edge()}, and \texttt{recalculate()} to re‐evaluate affected cells in the right order.
+
+        \item[\texttt{functions}]
+        - A registry of built‐in functions (SUM, AVG, IMPORT, etc.).
+        - Each function takes a slice of \texttt{Value}s and returns a new \texttt{Value} or an error.
+
+        \item[\texttt{web\_api}] (WASM only)
+        - Hooks into the browser DOM and Chart.js to render graphs.
+        - Exposes simple functions like \texttt{render\_graph(data)} or \texttt{export\_csv(text)} back to JavaScript.
+    \end{description}
+
+    \section{Encapsulation Approaches}
+
+    To keep our code clean and avoid accidental misuse, we used:
+
+    \begin{enumerate}
+        \item \textbf{Module Privacy:}
+        We only mark as \texttt{pub} the types and methods other modules actually need.  Everything else stays private.
+
+        \item \textbf{Interior Mutability:}
+        A single \texttt{thread\_local!} \texttt{RefCell<Spreadsheet>} holds our global sheet.  That way, we never sprinkle \texttt{unsafe} everywhere—only this one spot manages shared mutable state.
+
+        \item \textbf{New‐type Wrappers:}
+        Instead of raw integers for rows and columns, we use \texttt{struct Row(u16);} and \texttt{struct Col(u16);} so it’s hard to confuse \texttt{(row, col)} order.
+
+        \item \textbf{No Unsafe in Hot Paths:}
+        The only \texttt{unsafe} block is right at startup to speed up the WASM memory view.  Every other calculation is pure safe Rust.
+    \end{enumerate}
+
+    \section{Why the Design is Good}
+
+    \begin{itemize}
+        \item \textbf{Memory and Time Efficiency of Backend:}
+        \begin{itemize}
+            \item We have used topological sorting to find downstream dependencies starting from the updated cell. Recalculating all dependents in topological order ensures each cell is recalculated at most once.
+            \item We have used a formula array which stores only the endpoints of a range formula, instead of all cells in the range. The formula corresponding to a given cell can be directly obtained in \texttt{O(1)} and updated.
+            \item Instead of passing in the whole spreadsheet as a state into the undo/redo stack, we reduced the overhead by pushing cell-value pairs and simply reverting the dependencies at runtime.
+        \end{itemize}
+        \item \textbf{Separate logic for CLI and web version:}
+        \begin{itemize}
+            \item We have kept all logic separate for the two versions because our primary goal for the CLI version was time and memory efficiency. Hence, operations specific to the web version which might cause overhead are not present in the CLI (only undo redo for now).
+            \item Operations like cut/copy/paste can be smoothly integrated into the web version without compromising the efficiency of the CLI.
+        \end{itemize}
+        \item \textbf{Easy to Extend:}
+        \begin{itemize}
+            \item Included all advanced functions in \texttt{functions.rs}. This makes it easier to extend the spreadsheet with functions like median, mode, etc as the required function can be added to the file and directly called from \texttt{input\_parser.rs}.
+            \item CSS variable–based themes allow defining new color schemes or dark mode with just a handful of CSS overrides. No changes in Rust or JS required.
+            \item Centralized event handling (one listener for keyboard shortcuts and UI actions) makes it straightforward to register new shortcuts or controls in a single place.
+        \end{itemize}
+        \item \textbf{Frontend-side API fetching:}
+        By moving stock data retrieval into JavaScript (using the browser’s built‐in \texttt{fetch})
+        instead of Rust’s \texttt{reqwest}, we eliminated complex WASM import/CORS issues, reduced Rust compile‐time errors, and kept the core engine free of heavy HTTP dependencies.
+        \item \textbf{User-Friendly Interface:}
+        The application includes several UI features like keyboard shortcuts (e.g., \texttt{Ctrl+Z} for undo, \texttt{Ctrl+S} for export), dark mode, scrollable cell grid, and labeled graph outputs. The formula bar dynamically updates on cell selection, making it easy for users to inspect and modify cell logic. These elements collectively provide a smooth experience even for first-time users.
+
+    \end{itemize}
+
+    \section{Design Modifications During Development}
+
+    Along the way, we tweaked our architecture a few times:
+
+    \begin{enumerate}
+        \item \textbf{Parser Overhaul:}
+        We started with hand‐rolled regex parsing but switched to a small combinator library so we could show user‐friendly error messages without extra work.
+
+        \item \textbf{Graph Extraction:}
+        Originally, formula evaluation lived inside the spreadsheet core.  We pulled it out into its own \texttt{graph} module to make unit tests much simpler.
+
+        \item \textbf{Renderer Decoupling:}
+        At first, our Rust code tried to call into the DOM directly.  We later moved all HTML and Chart.js calls into JavaScript, so the Rust side only serializes data—avoiding async borrow‐checker headaches.
+    \end{enumerate}
+
+
+    \vfill
+    \noindent\textbf{Repository}: \url{https://github.com/your-repo}
+
+\end{document}

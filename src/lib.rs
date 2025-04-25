@@ -15,6 +15,9 @@
 //! ```
 // use crate::input_parser::cell_parser;
 use std::cell::RefCell;
+
+#[cfg(feature = "wasm")]
+use crate::input_parser::cell_parser;
 // Only include wasm-bindgen if the "wasm" feature is enabled
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;

@@ -10,7 +10,7 @@ run: build
 	./target/release/spreadsheet 100 100
 
 # Build & serve the WASM extension (no autograder feature)
-extension:
+ext1:
 	RUSTFLAGS="-C opt-level=3" trunk build --features wasm
 	trunk serve --features wasm --open
 
@@ -19,4 +19,24 @@ clean:
 	cargo clean
 	rm -rf dist build
 
-.PHONY: all build run extension clean
+coverage:
+	cargo tarpaulin --out Html
+
+test:
+	cargo test
+
+docs: cargo-doc
+
+cargo-doc:
+	cargo doc --no-deps --open
+
+report: report.pdf
+	# On macOS, use 'open'; on Linux, you might use 'xdg-open'
+	open report.pdf
+
+report.pdf: report.tex
+	pdflatex report.tex
+	# Running pdflatex a second time for proper reference resolution (optional)
+	pdflatex report.tex
+
+.PHONY: all build run extension clean coverage test docs cargo-doc report
