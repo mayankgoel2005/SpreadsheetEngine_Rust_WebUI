@@ -62,7 +62,7 @@ A feature-rich spreadsheet application built in **Rust** and compiled to **WebAs
 
 ### CLI
 ```sh
-cargo run --features cli
+make
 ```
 
 ### Web (via `wasm-pack`)
@@ -71,10 +71,22 @@ cargo install trunk
 rustup target add wasm32-unknown-unknown
 make ext1
 ```
+We have run the web version on Port 8080 (localhost).
+To change it to Port 80, you can modify the Makefile as follows:
+Change 
+```sh
+	trunk serve --features wasm --open
+```
+to 
+```sh
+	sudo trunk serve --features wasm --open --port 80
+```
+
 
 ### Report
 ```sh
 sudo apt-get install texlive-full
+make docs
 ```
 
 ## Export & Import
