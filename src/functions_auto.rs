@@ -36,11 +36,10 @@ fn validate_range(start: i32, end: i32, cols: i32) -> bool {
 /// # use lab1::functions::min_func;
 /// # use lab1::graph::{Graph, Formula};
 /// # use lab1::input_parser::cell_parser;
-/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut arr = vec![10, 3, 0, 7, 2,0];
 /// let mut graph = Graph::new();
-/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
-/// // place the minimum of A1:B2 into cell C1 (index 2):
-/// let ok = min_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// let mut farr = vec![Formula{op_type:9,p1:0,p2:4}; arr.len()];
+/// let ok = min_func("C1=MIN(A1:B2)", 3, 2, 2, &mut arr, &mut graph, &mut farr);
 /// assert!(ok);
 /// assert_eq!(arr[2], 2);
 /// ```
@@ -122,13 +121,12 @@ pub fn min_func(
 /// # use lab1::functions::max_func;
 /// # use lab1::graph::{Graph, Formula};
 /// # use lab1::input_parser::cell_parser;
-/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut arr = vec![10, 3, 0, 7, 2,0];
 /// let mut graph = Graph::new();
-/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
-/// // place the minimum of A1:B2 into cell C1 (index 2):
-/// let ok = max_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// let mut farr = vec![Formula{op_type:10,p1:0,p2:4}; arr.len()];
+/// let ok = max_func("C1=MAX(A1:B2)", 3, 2, 2, &mut arr, &mut graph, &mut farr);
 /// assert!(ok);
-/// assert_eq!(arr[2], 2);
+/// assert_eq!(arr[2], 10);
 /// ```
 pub fn max_func(
     txt: &str,
@@ -205,13 +203,12 @@ pub fn max_func(
 /// # use lab1::functions::avg_func;
 /// # use lab1::graph::{Graph, Formula};
 /// # use lab1::input_parser::cell_parser;
-/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut arr = vec![10, 12, 0, 14, 16,0];
 /// let mut graph = Graph::new();
-/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
-/// // place the minimum of A1:B2 into cell C1 (index 2):
-/// let ok = avg_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// let mut farr = vec![Formula{op_type:11,p1:0,p2:4}; arr.len()];
+/// let ok = avg_func("C1=AVG(A1:B2)", 3, 2, 2, &mut arr, &mut graph, &mut farr);
 /// assert!(ok);
-/// assert_eq!(arr[2], 2);
+/// assert_eq!(arr[2], 13);
 /// ```
 pub fn avg_func(
     txt: &str,
@@ -288,13 +285,12 @@ pub fn avg_func(
 /// # use lab1::functions::sum_func;
 /// # use lab1::graph::{Graph, Formula};
 /// # use lab1::input_parser::cell_parser;
-/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut arr = vec![10, 3, 0, 7, 2,0];
 /// let mut graph = Graph::new();
-/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
-/// // place the minimum of A1:B2 into cell C1 (index 2):
-/// let ok = sum_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// let mut farr = vec![Formula{op_type:12,p1:0,p2:4}; arr.len()];
+/// let ok = sum_func("C1=SUM(A1:B2)", 3, 2, 2, &mut arr, &mut graph, &mut farr);
 /// assert!(ok);
-/// assert_eq!(arr[2], 2);
+/// assert_eq!(arr[2], 22);
 /// ```
 pub fn sum_func(
     txt: &str,
@@ -366,16 +362,15 @@ pub fn sum_func(
 /// # Examples
 ///
 /// ```rust
+/// # use lab1::functions::standard_dev_func;
 /// # use lab1::graph::{Graph, Formula};
 /// # use lab1::input_parser::cell_parser;
-/// use lab1::standard_dev_func;
-/// let mut arr = vec![10, 3, 7, 2]; // 2×2 sheet: [10,3;7,2]
+/// let mut arr = vec![10, 10, 0, 10, 10,0];
 /// let mut graph = Graph::new();
-/// let mut farr = vec![Formula{op_type:0,p1:0,p2:0}; arr.len()];
-/// // place the minimum of A1:B2 into cell C1 (index 2):
-/// let ok = standard_dev_func("C1=MIN(A1:B2)", 2, 2, 2, &mut arr, &mut graph, &mut farr);
+/// let mut farr = vec![Formula{op_type:13,p1:0,p2:4}; arr.len()];
+/// let ok = standard_dev_func("C1=STDEV(A1:B2)", 3, 2, 2, &mut arr, &mut graph, &mut farr);
 /// assert!(ok);
-/// assert_eq!(arr[2], 2);
+/// assert_eq!(arr[2], 0);
 /// ```
 pub fn standard_dev_func(
     txt: &str,
